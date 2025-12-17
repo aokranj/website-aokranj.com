@@ -27,8 +27,8 @@ jobs:
                     host: stg.aokranj.com
                     username: ao-stg
                     key: ${{ secrets.SSH_PRIVKEY_GITHUB_TO_AO_STG }}
-                    script_stop: true
                     script: |
+                        set -e
                         cd www/stg.aokranj.com
                         git pull
                         ./sbin/deploy-here

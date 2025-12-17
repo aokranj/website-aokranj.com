@@ -43,8 +43,8 @@ jobs:
                     host: www.aokranj.com
                     username: ao-prod
                     key: ${{ secrets.SSH_PRIVKEY_GITHUB_TO_AO_PROD }}
-                    script_stop: true
                     script: |
+                        set -e
                         cd www/www.aokranj.com
                         git fetch
                         git checkout "${{github.ref_name}}"
