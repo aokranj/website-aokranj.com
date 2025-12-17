@@ -105,5 +105,5 @@ echo
 echo "SUCCESS: Deployment has been triggered."
 echo "SUCCESS: You can follow the deployment progress here:"
 echo
-echo "    https://github.com/aokranj/website-aokranj.com/actions/workflows/deploy-to-prod.yml"
+echo "    https://github.com/aokranj/website-aokranj.com/actions/workflows/deploy-prod.yml"
 echo

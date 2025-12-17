@@ -60,7 +60,7 @@ Prerequisites:
 
 ** Step #2** - Follow the automated deployment:
 
-Here: https://github.com/aokranj/website-aokranj.com/actions/workflows/deploy-to-prod.yml
+Here: https://github.com/aokranj/website-aokranj.com/actions/workflows/deploy-prod.yml
 
 ** Step #3** - If needed, manually handle the (re)configuration tasks:
 ```
