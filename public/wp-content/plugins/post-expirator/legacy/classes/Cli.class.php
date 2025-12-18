@@ -1,6 +1,12 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * PublishPress Future: Schedule Post Changes
+ *
+ * @package     PublishPress\Future
+ * @author      PublishPress
+ * @copyright   Copyright (c) 2025, PublishPress
+ * @license     GPLv2 or later
  */
 
 defined('ABSPATH') or die('Direct access not allowed.');
@@ -8,14 +14,19 @@ defined('ABSPATH') or die('Direct access not allowed.');
 /**
  * Utility functions.
  */
+// phpcs:ignore PSR1.Classes.ClassDeclaration.MissingNamespace, Squiz.Classes.ValidClassName.NotCamelCaps
 class PostExpirator_Cli
 {
-    const CLI_COMMAND = 'publishpress-future';
+    public const CLI_COMMAND = 'publishpress-future';
 
     private static $instance;
 
     public function __construct()
     {
+        if (! defined('WP_CLI')) {
+            return;
+        }
+
         try {
             WP_CLI::add_command(
                 self::CLI_COMMAND . ' expire-post',
@@ -25,8 +36,8 @@ class PostExpirator_Cli
                     'longdesc' => 'Expire a post passing the post id, ignoring the expiration date',
                 ]
             );
-        } catch (Exception $e) {
-            WP_CLI::warning($e);
+        } catch (Throwable $e) {
+            WP_CLI::warning($e->getMessage());
         }
     }
 

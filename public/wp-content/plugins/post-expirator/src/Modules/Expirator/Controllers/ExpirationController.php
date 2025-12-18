@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Controllers;
@@ -9,14 +10,12 @@ use Closure;
 use Exception;
 use PublishPress\Future\Core\HookableInterface;
 use PublishPress\Future\Framework\InitializableInterface;
-use PublishPress\Future\Framework\WordPress\Facade\SiteFacade;
-use PublishPress\Future\Modules\Expirator\Adapters\CronToWooActionSchedulerAdapter;
+use PublishPress\Future\Framework\Logger\LoggerInterface;
+use PublishPress\Future\Modules\Expirator\DBTableSchemas\ActionArgsSchema;
 use PublishPress\Future\Modules\Expirator\HooksAbstract;
-use PublishPress\Future\Modules\Expirator\Interfaces\CronInterface;
 use PublishPress\Future\Modules\Expirator\Interfaces\SchedulerInterface;
 use PublishPress\Future\Modules\Expirator\Models\ExpirablePostModel;
-use PublishPress\Future\Modules\Expirator\Schemas\ActionArgsSchema;
-use PublishPress\Future\Modules\Settings\HooksAbstract as SettingsHooksAbstract;
+use Throwable;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
@@ -26,16 +25,6 @@ class ExpirationController implements InitializableInterface
      * @var HookableInterface
      */
     private $hooks;
-
-    /**
-     * @var SiteFacade
-     */
-    private $site;
-
-    /**
-     * @var CronInterface
-     */
-    private $cron;
 
     /**
      * @var SchedulerInterface
@@ -48,32 +37,37 @@ class ExpirationController implements InitializableInterface
     private $expirablePostModelFactory;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
+     * @var ActionArgsSchema
+     */
+    private $actionArgsSchema;
+
+    /**
      * @param HookableInterface $hooksFacade
-     * @param SiteFacade $siteFacade
-     * @param CronInterface $cron
      * @param SchedulerInterface $scheduler
      * @param Closure $expirablePostModelFactory
+     * @param LoggerInterface $logger
      */
     public function __construct(
         HookableInterface $hooksFacade,
-        SiteFacade $siteFacade,
-        CronInterface $cron,
         SchedulerInterface $scheduler,
-        Closure $expirablePostModelFactory
+        Closure $expirablePostModelFactory,
+        LoggerInterface $logger,
+        ActionArgsSchema $actionArgsSchema
     ) {
         $this->hooks = $hooksFacade;
-        $this->site = $siteFacade;
-        $this->cron = $cron;
         $this->scheduler = $scheduler;
         $this->expirablePostModelFactory = $expirablePostModelFactory;
+        $this->logger = $logger;
+        $this->actionArgsSchema = $actionArgsSchema;
     }
 
     public function initialize()
     {
-        $this->hooks->addAction(
-            SettingsHooksAbstract::ACTION_DELETE_ALL_SETTINGS,
-            [$this, 'onActionDeleteAllSettings']
-        );
         $this->hooks->addAction(
             HooksAbstract::ACTION_SCHEDULE_POST_EXPIRATION,
             [$this, 'onActionSchedulePostExpiration'],
@@ -89,21 +83,23 @@ class ExpirationController implements InitializableInterface
             [$this, 'onActionRunPostExpiration']
         );
         $this->hooks->addAction(
-            HooksAbstract::ACTION_LEGACY_EXPIRE_POST2,
+            HooksAbstract::ACTION_LEGACY_RUN_WORKFLOW,
             [$this, 'onActionRunPostExpiration']
         );
+
         $this->hooks->addAction(
-            HooksAbstract::ACTION_LEGACY_EXPIRE_POST1,
-            [$this, 'onActionRunPostExpiration']
+            HooksAbstract::ACTION_POST_UPDATED,
+            [$this, 'autoEnableOnPostUpdate'],
+            10,
+            3
         );
-    }
 
-    public function onActionDeleteAllSettings()
-    {
-        $this->cron->clearScheduledAction(HooksAbstract::ACTION_LEGACY_DELETE);
-
-        $this->cron->cancelActionsByGroup(CronToWooActionSchedulerAdapter::SCHEDULED_ACTION_GROUP);
-
+        $this->hooks->addAction(
+            HooksAbstract::ACTION_INSERT_POST,
+            [$this, 'autoEnableOnInsertPost'],
+            10,
+            3
+        );
     }
 
     public function onActionSchedulePostExpiration($postId, $timestamp, $opts)
@@ -125,10 +121,57 @@ class ExpirationController implements InitializableInterface
 
         $postModel = $postModelFactory($postId);
 
-        if (! ($postModel instanceof ExpirablePostModel)) {
+        if (!($postModel instanceof ExpirablePostModel)) {
             throw new Exception('Invalid post model factory');
         }
 
         $postModel->expire($force);
+    }
+
+    public function autoEnableOnPostUpdate($postId, $postAfter, $postBefore): void
+    {
+        try {
+            // Ignore auto-drafts
+            if ($postAfter->post_status === 'auto-draft') {
+                return;
+            }
+
+            // Transitioning from auto-draft to anything else
+            if ($postBefore->post_status !== 'auto-draft') {
+                return;
+            }
+
+            $this->setupFutureActionIfAutoEnabled($postId);
+        } catch (Throwable $th) {
+            $this->logger->error('Error setting default meta for post: ' . $th->getMessage());
+        }
+    }
+
+    public function autoEnableOnInsertPost($postId, $post, $update)
+    {
+        if ($update) {
+            return;
+        }
+
+        if ($post->post_status === 'auto-draft') {
+            return;
+        }
+
+        $this->setupFutureActionIfAutoEnabled($postId);
+    }
+
+    private function setupFutureActionIfAutoEnabled(int $postId): void
+    {
+        // This is needed to avoid errors on fresh install. See issue #1051.
+        if (! $this->actionArgsSchema->isTableHealthy()) {
+            return;
+        }
+
+        $postModelFactory = $this->expirablePostModelFactory;
+        $postModel = $postModelFactory($postId);
+
+        if ($postModel->shouldAutoEnable()) {
+            $postModel->setupFutureActionWithDefaultData();
+        }
     }
 }

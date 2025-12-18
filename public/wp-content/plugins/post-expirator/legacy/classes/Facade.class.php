@@ -3,8 +3,6 @@
 use PublishPress\Future\Core\DI\Container;
 use PublishPress\Future\Core\DI\ServicesAbstract;
 use PublishPress\Future\Modules\Expirator\CapabilitiesAbstract;
-use PublishPress\Future\Modules\Expirator\HooksAbstract;
-use PublishPress\Future\Modules\Expirator\PostMetaAbstract;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
@@ -13,28 +11,14 @@ defined('ABSPATH') or die('Direct access not allowed.');
  *
  * Eventually, everything should move here.
  */
+// phpcs:disable PSR1.Methods.CamelCapsMethodName.NotCamelCaps
+// phpcs:ignore PSR1.Classes.ClassDeclaration.MissingNamespace, Squiz.Classes.ValidClassName.NotCamelCaps
 class PostExpirator_Facade
 {
-
-    /**
-     * @deprecated 2.8.0 Use CapabilitiesAbstract::EXPIRE_POST;
-     */
-    const DEFAULT_CAPABILITY_EXPIRE_POST = CapabilitiesAbstract::EXPIRE_POST;
-
     /**
      * The singleton instance.
      */
     private static $instance = null;
-
-    /**
-     * List of capabilities used by the plugin.
-     *
-     * @var string[]
-     * @deprecated 2.8.0
-     */
-    private $capabilities = array(
-        'expire_post' => CapabilitiesAbstract::EXPIRE_POST,
-    );
 
     /**
      * Constructor.
@@ -54,10 +38,10 @@ class PostExpirator_Facade
      */
     private function hooks()
     {
-        add_action('enqueue_block_editor_assets', array($this, 'block_editor_assets'));
-        add_action('updated_postmeta', array($this, 'onUpdatePostMeta'), 10, 4);
-        add_filter('cme_plugin_capabilities', [$this, 'filter_cme_capabilities'], 20);
-        add_action('rest_api_init', [$this, 'register_rest_api']);
+        $container = Container::getInstance();
+        $hooks = $container->get(ServicesAbstract::HOOKS);
+
+        $hooks->addFilter('cme_plugin_capabilities', [$this, 'filter_cme_capabilities'], 20);
     }
 
     /**
@@ -92,82 +76,6 @@ class PostExpirator_Facade
     }
 
     /**
-     * Loads the assets for the particular page.
-     */
-    public static function load_assets($for)
-    {
-        switch ($for) {
-            case 'settings':
-                wp_enqueue_style(
-                    'pe-footer',
-                    POSTEXPIRATOR_BASEURL . 'assets/css/footer.css',
-                    false,
-                    POSTEXPIRATOR_VERSION
-                );
-                wp_enqueue_style(
-                    'pe-settings',
-                    POSTEXPIRATOR_BASEURL . 'assets/css/settings.css',
-                    ['pe-footer'],
-                    POSTEXPIRATOR_VERSION
-                );
-                wp_enqueue_style(
-                    'pe-jquery-ui',
-                    POSTEXPIRATOR_BASEURL . 'assets/css/lib/jquery-ui/jquery-ui.min.css',
-                    ['pe-settings'],
-                    POSTEXPIRATOR_VERSION
-                );
-                wp_enqueue_style(
-                    'pp-wordpress-banners-style',
-                    POSTEXPIRATOR_BASEURL . 'assets/vendor/wordpress-banners/css/style.css',
-                    false,
-                    POSTEXPIRATOR_VERSION
-                );
-                break;
-        }
-    }
-
-    /**
-     * Fires when the post meta is updated (in the gutenberg block).
-     */
-    public function onUpdatePostMeta($meta_id, $post_id, $meta_key, $meta_value)
-    {
-        // allow only through gutenberg
-        if (! PostExpirator_Util::is_gutenberg_active()) {
-            return;
-        }
-
-        // not through bulk edit.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if (isset($_POST['post_ids'])) {
-            return;
-        }
-
-        // not through quick edit.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if (isset($_POST['expirationdate_quickedit'])) {
-            return;
-        }
-
-        switch ($meta_key) {
-            case PostMetaAbstract::EXPIRATION_STATUS:
-                if (empty($meta_value)) {
-                    do_action(HooksAbstract::ACTION_UNSCHEDULE_POST_EXPIRATION, $post_id);
-                }
-
-
-                break;
-            case PostMetaAbstract::EXPIRATION_TIMESTAMP:
-                $container = Container::getInstance();
-                $factory = $container->get(ServicesAbstract::EXPIRABLE_POST_MODEL_FACTORY);
-                $postModel = $factory($post_id);
-
-                do_action(HooksAbstract::ACTION_SCHEDULE_POST_EXPIRATION, $post_id, $meta_value, $postModel->getExpirationDataAsArray());
-
-                break;
-        }
-    }
-
-    /**
      * Get the expiry type, categories etc.
      *
      * Keeps in mind the old (classic editor) and new (gutenberg) structure.
@@ -180,6 +88,9 @@ class PostExpirator_Facade
         $container = Container::getInstance();
         $factory = $container->get(ServicesAbstract::ACTION_ARGS_MODEL_FACTORY);
 
+        /**
+         * @var \PublishPress\Future\Modules\Expirator\Interfaces\ActionArgsModelInterface
+         */
         $actionArgsModel = $factory();
 
         $actionArgsModel->loadByPostId($postId);
@@ -187,202 +98,23 @@ class PostExpirator_Facade
 
         return array(
             'expireType' => isset($args['expireType']) ? $args['expireType'] : '',
+            'newStatus' => isset($args['newStatus']) ? $args['newStatus'] : 'draft',
             'category' => isset($args['category']) ? $args['category'] : [],
             'categoryTaxonomy' => isset($args['categoryTaxonomy']) ? $args['categoryTaxonomy'] : '',
             'enabled' => true,
         );
     }
 
-    public function register_rest_api()
-    {
-        $apiNamespace = 'publishpress-future/v1';
-
-        register_rest_route( $apiNamespace, '/post-expiration/(?P<postId>\d+)', [
-            'methods' => 'GET',
-            'callback' => [$this, 'api_get_expiration_data'],
-            'permission_callback' => function () {
-                return current_user_can(CapabilitiesAbstract::EXPIRE_POST);
-            },
-            'args' => [
-                'postId' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        return is_numeric($param);
-                    },
-                    'sanitize_callback' => 'absint',
-                    'required' => true,
-                    'type' => 'integer',
-                ],
-            ]
-        ]);
-
-        register_rest_route($apiNamespace, '/post-expiration/(?P<postId>\d+)', [
-            'methods' => 'POST',
-            'callback' => [$this, 'api_save_expiration_data'],
-            'permission_callback' => function () {
-                return current_user_can(CapabilitiesAbstract::EXPIRE_POST);
-            },
-            'args' => [
-                'postId' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        return is_numeric($param);
-                    },
-                    'sanitize_callback' => 'absint',
-                    'required' => true,
-                    'type' => 'integer',
-                ],
-                'enabled' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        return is_bool($param);
-                    },
-                    'sanitize_callback' => 'sanitize_text_field',
-                    'required' => false,
-                    'type' => 'bool',
-                ],
-                'date' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        return is_numeric($param);
-                    },
-                    'sanitize_callback' => 'absint',
-                    'required' => true,
-                    'type' => 'integer',
-                ],
-                'action' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        // Get available future action actions using the service EXPIRATION_ACTIONS_MODEL.
-                        $container = Container::getInstance();
-                        $expirationActionsModel = $container->get(ServicesAbstract::EXPIRATION_ACTIONS_MODEL);
-                        $expirationActions = array_keys($expirationActionsModel->getActions());
-
-                        return in_array($param, $expirationActions) || $param === '';
-                    },
-                    'sanitize_callback' => 'sanitize_text_field',
-                    'required' => true,
-                    'type' => 'string',
-                ],
-                'terms' => [
-                    'validate_callback' => function ($param, $request, $key) {
-                        return is_array($param);
-                    },
-                    'sanitize_callback' => function ($param, $request, $key) {
-                        return array_map('absint', $param);
-                    },
-                    'required' => true,
-                    'type' => 'array',
-                ],
-            ]
-        ]);
-    }
-
-    public function api_get_expiration_data(WP_REST_Request $request)
-    {
-        $postId = $request->get_param('postId');
-        $container = Container::getInstance();
-        $factory = $container->get(ServicesAbstract::EXPIRABLE_POST_MODEL_FACTORY);
-        $expirablePostModel = $factory($postId);
-
-        $data = $expirablePostModel->getExpirationDataAsArray();
-
-        // return the data as a JSON response
-        return rest_ensure_response( $data );
-    }
-
-    public function api_save_expiration_data(WP_REST_Request $request)
-    {
-        $postId = absint($request->get_param('postId'));
-
-        $expirationEnabled = (bool)$request->get_param('enabled');
-
-        if ($expirationEnabled) {
-            $opts = [
-                'expireType' => sanitize_key($request->get_param('action')),
-                'category' => array_map('absint', (array)$request->get_param('terms')),
-                'categoryTaxonomy' => sanitize_key($request->get_param('taxonomy')),
-                'enabled' => $expirationEnabled,
-                'date' => absint($request->get_param('date')),
-            ];
-
-            do_action(HooksAbstract::ACTION_SCHEDULE_POST_EXPIRATION, $postId, absint($request->get_param('date')), $opts);
-        } else {
-            do_action(HooksAbstract::ACTION_UNSCHEDULE_POST_EXPIRATION, $postId);
-        }
-
-        return rest_ensure_response(true);
-    }
-
-    /**
-     * Load the block's backend assets only if the meta box is active for this post type.
-     */
-    public function block_editor_assets()
-    {
-        global $post;
-
-        if (! $post || ! self::show_gutenberg_metabox()) {
-            return;
-        }
-
-        $container = Container::getInstance();
-        $settingsFacade = $container->get(ServicesAbstract::SETTINGS);
-        $actionsModel = $container->get(ServicesAbstract::EXPIRATION_ACTIONS_MODEL);
-
-        $defaults = $settingsFacade->getPostTypeDefaults($post->post_type);
-
-        // if settings are not configured, show the metabox by default only for posts and pages
-        if (
-            (! isset($defaults['activeMetaBox']) && in_array(
-                    $post->post_type,
-                    [
-                        'post',
-                        'page',
-                    ],
-                    true
-                )) || $defaults['activeMetaBox'] === 'active'
-        ) {
-            wp_enqueue_script(
-                'postexpirator-gutenberg-panel',
-                POSTEXPIRATOR_BASEURL . 'assets/js/gutenberg-panel.js',
-                ['wp-edit-post'],
-                POSTEXPIRATOR_VERSION,
-                true
-            );
-
-            $defaultDataModel = $container->get(ServicesAbstract::DEFAULT_DATA_MODEL);
-            $debug = $container->get(ServicesAbstract::DEBUG);
-
-            $default_expiry = $defaultDataModel->getDefaultExpirationDateForPostType($post->post_type);
-            wp_localize_script(
-                'postexpirator-gutenberg-panel',
-                'postExpiratorPanelConfig',
-                [
-                    'defaults' => $defaults,
-                    'default_date' => $default_expiry['ts'],
-                    'default_categories' => get_option('expirationdateCategoryDefaults'),
-                    'is_12_hours' => get_option('time_format') !== 'H:i',
-                    'timezone_offset' => PostExpirator_Util::get_timezone_offset() / 60,
-                    'actions_options' => $actionsModel->getActionsAsOptions($post->post_type),
-                    'is_debug_enabled' => $debug->isEnabled(),
-                    'strings' => [
-                        'category' => __('Taxonomy', 'post-expirator'),
-                        'postExpirator' => __('PublishPress Future', 'post-expirator'),
-                        'enablePostExpiration' => __('Enable Future Action', 'post-expirator'),
-                        'howToExpire' => __('Action', 'post-expirator'),
-                        'loading' => __('Loading', 'post-expirator'),
-                        'expirationCategories' => __('Terms', 'post-expirator'),
-                    ]
-                ]
-            );
-        }
-    }
-
     /**
      * Is the (default) Gutenberg-style box enabled in options?
+     *
+     * @deprecated 3.1.5
      */
     public static function show_gutenberg_metabox()
     {
-        $gutenberg = get_option('expirationdateGutenbergSupport', 1);
+        _deprecated_function(__METHOD__, '3.1.5', 'Gutenberg plugin is mandatory now. This will always return true.');
 
-        $facade = PostExpirator_Facade::getInstance();
-
-        return intval($gutenberg) === 1 && $facade->current_user_can_expire_posts();
+        return true;
     }
 
     /**

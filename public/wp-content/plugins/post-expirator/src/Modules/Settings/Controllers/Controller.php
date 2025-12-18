@@ -1,22 +1,19 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Settings\Controllers;
 
 use PublishPress\Future\Core\HookableInterface;
 use PublishPress\Future\Core\HooksAbstract as CoreAbstractHooks;
+use PublishPress\Future\Core\Plugin;
 use PublishPress\Future\Framework\InitializableInterface;
-use PublishPress\Future\Framework\WordPress\Facade\OptionsFacade;
-use PublishPress\Future\Modules\Expirator\Interfaces\CronInterface;
-use PublishPress\Future\Modules\Expirator\Migrations\V30000ActionArgsSchema;
-use PublishPress\Future\Modules\Expirator\Migrations\V30000WPCronToActionsScheduler;
-use PublishPress\Future\Modules\Expirator\Migrations\V30000ReplaceFooterPlaceholders;
-use PublishPress\Future\Modules\Expirator\Migrations\V30001RestorePostMeta;
-use PublishPress\Future\Modules\Expirator\Schemas\ActionArgsSchema;
+use PublishPress\Future\Framework\Logger\LoggerInterface;
 use PublishPress\Future\Modules\Settings\HooksAbstract as SettingsHooksAbstract;
 use PublishPress\Future\Modules\Settings\SettingsFacade;
+use Throwable;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
@@ -53,24 +50,14 @@ class Controller implements InitializableInterface
     private $actionsModel;
 
     /**
-     * @var \PublishPress\Future\Framework\WordPress\Facade\OptionsFacade
-     */
-    private $options;
-
-    /**
-     * @var \PublishPress\Future\Modules\Expirator\Interfaces\CronInterface
-     */
-    private $cron;
-
-    /**
-     * @var \Closure
-     */
-    private $expirablePostModelFactory;
-
-    /**
      * @var \Closure
      */
     private $migrationsFactory;
+
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
 
     /**
      * @param HookableInterface $hooks
@@ -78,9 +65,8 @@ class Controller implements InitializableInterface
      * @param \Closure $settingsPostTypesModelFactory
      * @param \Closure $taxonomiesModelFactory
      * @param $actionsModel
-     * @param \PublishPress\Future\Modules\Expirator\Interfaces\CronInterface $cron
-     * @param \PublishPress\Future\Framework\WordPress\Facade\OptionsFacade $options
      * @param \Closure $migrationsFactory
+     * @param LoggerInterface $logger
      */
     public function __construct(
         HookableInterface $hooks,
@@ -88,38 +74,26 @@ class Controller implements InitializableInterface
         $settingsPostTypesModelFactory,
         $taxonomiesModelFactory,
         $actionsModel,
-        CronInterface $cron,
-        OptionsFacade $options,
-        \Closure $expirablePostModelFactory,
-        $migrationsFactory
+        $migrationsFactory,
+        LoggerInterface $logger
     ) {
         $this->hooks = $hooks;
         $this->settings = $settings;
         $this->settingsPostTypesModelFactory = $settingsPostTypesModelFactory;
         $this->taxonomiesModelFactory = $taxonomiesModelFactory;
         $this->actionsModel = $actionsModel;
-        $this->cron = $cron;
-        $this->options = $options;
-        $this->expirablePostModelFactory = $expirablePostModelFactory;
         $this->migrationsFactory = $migrationsFactory;
+        $this->logger = $logger;
     }
 
     public function initialize()
     {
-        $this->hooks->addAction(
-            CoreAbstractHooks::ACTION_ACTIVATE_PLUGIN,
-            [$this, 'onActionActivatePlugin']
-        );
-        $this->hooks->addAction(
-            CoreAbstractHooks::ACTION_DEACTIVATE_PLUGIN,
-            [$this, 'onActionDeactivatePlugin']
-        );
         $this->hooks->addFilter(
             SettingsHooksAbstract::FILTER_DEBUG_ENABLED,
             [$this, 'onFilterDebugEnabled']
         );
         $this->hooks->addAction(
-            CoreAbstractHooks::ACTION_ADMIN_ENQUEUE_SCRIPT,
+            CoreAbstractHooks::ACTION_ADMIN_ENQUEUE_SCRIPTS,
             [$this, 'onAdminEnqueueScript'],
             15
         );
@@ -128,16 +102,9 @@ class Controller implements InitializableInterface
             [$this, 'processFormSubmission']
         );
         $this->hooks->addAction(
-            CoreAbstractHooks::ACTION_ADMIN_INIT,
-            [$this, 'processToolsActions']
-        );
-        $this->hooks->addAction(
             CoreAbstractHooks::ACTION_INIT,
-            [$this, 'initMigrations']
-        );
-        $this->hooks->addAction(
-            CoreAbstractHooks::ACTION_ADMIN_NOTICES,
-            [$this, 'displayAdminNotices']
+            [$this, 'initMigrations'],
+            20
         );
     }
 
@@ -162,356 +129,185 @@ class Controller implements InitializableInterface
         return $this->settings->getDebugIsEnabled($enabled);
     }
 
-    private function convertPostTypesListIntoOptionsList($list)
+    public function onAdminEnqueueScript($screenId)
     {
-        $optionsList = [];
-
-        foreach ($list as $postType => $taxonomiesList) {
-            $optionsList[$postType] = [];
-
-            if (empty($taxonomiesList)) {
-                continue;
+        try {
+            if ($screenId !== 'future_page_publishpress-future-settings') {
+                return;
             }
 
-            foreach ($taxonomiesList as $taxonomySlug => $taxonomyObject) {
-                $optionsList[$postType][] = ['value' => $taxonomySlug, 'label' => $taxonomyObject->label];
-            }
-        }
-
-        return $optionsList;
-    }
-
-    public function onAdminEnqueueScript()
-    {
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended
-        if (
-            (isset($_GET['page']) && $_GET['page'] === 'publishpress-future')
-            && (isset($_GET['tab']) && $_GET['tab'] === 'defaults')
-        ) {
-            //phpcs:enable WordPress.Security.NonceVerification.Recommended
-            wp_enqueue_script(
-                'publishpressfuture-settings-panel',
-                POSTEXPIRATOR_BASEURL . 'assets/js/settings-post-types.js',
-                ['react', 'react-dom'],
-                POSTEXPIRATOR_VERSION,
-                true
+            wp_enqueue_style(
+                'pe-footer',
+                Plugin::getAssetUrl('css/footer.css'),
+                false,
+                PUBLISHPRESS_FUTURE_VERSION
+            );
+            wp_enqueue_style(
+                'pe-settings',
+                Plugin::getAssetUrl('css/settings.css'),
+                ['pe-footer'],
+                PUBLISHPRESS_FUTURE_VERSION
+            );
+            wp_enqueue_style(
+                'pe-jquery-ui',
+                Plugin::getAssetUrl('css/lib/jquery-ui/jquery-ui.min.css'),
+                ['pe-settings'],
+                PUBLISHPRESS_FUTURE_VERSION
+            );
+            wp_enqueue_style(
+                'pp-wordpress-banners-style',
+                Plugin::getAssetUrl('vendor/wordpress-banners/css/style.css'),
+                false,
+                PUBLISHPRESS_FUTURE_VERSION
             );
 
-            $settingsPostTypesModelFactory = $this->settingsPostTypesModelFactory;
-            $settingsModel = $settingsPostTypesModelFactory();
+            $defaultTab = $this->settings->getSettingsDefaultTab();
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : '';
 
-            $taxonomiesModelFactory = $this->taxonomiesModelFactory;
-            $taxonomiesModel = $taxonomiesModelFactory();
+            if ((!$tab && $defaultTab === 'advanced') || ($tab === 'advanced')) {
+                wp_enqueue_script(
+                    'publishpress-future-settings-advanced-panel',
+                    Plugin::getScriptUrl('settingsAdvanced'),
+                    [
+                        'wp-components',
+                        'wp-url',
+                        'wp-data',
+                        'wp-element',
+                        'wp-api-fetch',
+                    ],
+                    PUBLISHPRESS_FUTURE_VERSION,
+                    true
+                );
 
-            wp_localize_script(
-                'publishpressfuture-settings-panel',
-                'publishpressFutureConfig',
-                [
-                    'text' => [
-                        'settingsSectionTitle' => __('Default Values', 'post-expirator'),
-                        'settingsSectionDescription' => __(
-                            'Use the values below to set the default actions/values to be used for each for the corresponding post types.  These values can all be overwritten when creating/editing the post/page.',
-                            'post-expirator'
-                        ),
-                        'fieldActive' => __('Active', 'post-expirator'),
-                        'fieldActiveTrue' => __('Active', 'post-expirator'),
-                        'fieldActiveFalse' => __('Inactive', 'post-expirator'),
-                        'fieldActiveDescription' => __(
-                            'Select whether the PublishPress Future meta box is active for this post type.',
-                            'post-expirator'
-                        ),
-                        'fieldHowToExpire' => __('Action', 'post-expirator'),
-                        'fieldHowToExpireDescription' => __(
-                            'Select the default action for the post type.',
-                            'post-expirator'
-                        ),
-                        'fieldAutoEnable' => __('Auto-enable?', 'post-expirator'),
-                        'fieldAutoEnableTrue' => __('Enabled', 'post-expirator'),
-                        'fieldAutoEnableFalse' => __('Disabled', 'post-expirator'),
-                        'fieldAutoEnableDescription' => __(
-                            'Select whether the PublishPress Future is enabled for all new posts.',
-                            'post-expirator'
-                        ),
-                        'fieldTaxonomy' => __('Taxonomy (hierarchical)', 'post-expirator'),
-                        'noItemsfound' => __('No taxonomies found', 'post-expirator'),
-                        'fieldTaxonomyDescription' => __(
-                            'Select the hierarchical taxonomy and terms to be used for taxonomy based expiration.',
-                            'post-expirator'
-                        ),
-                        'fieldWhoToNotify' => __('Who to notify', 'post-expirator'),
-                        'fieldWhoToNotifyDescription' => __(
-                            'Enter a comma separate list of emails that you would like to be notified when the action runs.',
-                            'post-expirator'
-                        ),
-                        'fieldDefaultDateTimeOffset' => __('Default date/time offset', 'post-expirator'),
-                        'fieldDefaultDateTimeOffsetDescription' => sprintf(
-                            esc_html__(
-                                'Set the offset to use for the default action date and time. For information on formatting, see %1$s. For example, you could enter %2$s+1 month%3$s or %4$s+1 week 2 days 4 hours 2 seconds%5$s or %6$snext Thursday%7$s.',
+                wp_enqueue_script('wp-url');
+                wp_enqueue_script('wp-element');
+                wp_enqueue_script('wp-api-fetch');
+                wp_enqueue_script('wp-data');
+
+                wp_localize_script(
+                    'publishpress-future-settings-advanced-panel',
+                    'publishpressFutureSettingsAdvanced',
+                    [
+                        'text' => [
+                            'scheduledStepsCleanup' => __('Scheduled Workflow Steps Cleanup', 'post-expirator'),
+                            'scheduledStepsCleanupEnable' => __(
+                                'Automatically remove scheduled workflow steps',
                                 'post-expirator'
                             ),
-                            '<a href="http://php.net/manual/en/function.strtotime.php" target="_new">' . esc_html__(
-                                'PHP strtotime function',
+                            'scheduledStepsCleanupEnableDesc' => __(
+                                'Automatically remove scheduled workflow steps that have been marked as failed, completed, or cancelled.',
                                 'post-expirator'
-                            ) . '</a>',
-                            '<code>',
-                            '</code>',
-                            '<code>',
-                            '</code>',
-                            '<code>',
-                            '</code>'
-                        ),
-                        'fieldTerm' => __('Default terms:', 'post-expirator'),
-                        'saveChanges' => __('Save changes', 'post-expirator'),
-                    ],
-                    'settings' => $settingsModel->getPostTypesSettings(),
-                    'expireTypeList' => $this->actionsModel->getActionsAsOptionsForAllPostTypes(),
-                    'taxonomiesList' => $this->convertPostTypesListIntoOptionsList(
-                        $taxonomiesModel->getTaxonomiesByPostType()
-                    ),
-                    'nonce' => wp_create_nonce('postexpirator_menu_defaults'),
-                    'referrer' => esc_html(remove_query_arg('_wp_http_referer')),
-                    'restUrl' => get_rest_url(),
-                ]
+                            ),
+                            'scheduledStepsCleanupDisable' => __(
+                                'Retain all scheduled workflow steps',
+                                'post-expirator'
+                            ),
+                            'scheduledStepsCleanupDisableDesc' => __(
+                                'Retain all scheduled workflow steps indefinitely, including those marked as failed, completed, or cancelled. This may impact database performance over time.',
+                                'post-expirator'
+                            ),
+                            'scheduledStepsCleanupRetention' => __('Retention', 'post-expirator'),
+                            'scheduledStepsCleanupRetentionDesc' => __(
+                                'The duration, in days, for which completed, failed, and canceled scheduled workflow steps will be preserved before automatic removal.',
+                                'post-expirator'
+                            ),
+                            'days' => __('days', 'post-expirator'),
+                        ],
+                        'settings' => [
+                            'scheduledStepsCleanupStatus' => $this->settings->getScheduledWorkflowStepsCleanupStatus(),
+                            'scheduledStepsCleanupRetention' => $this->settings->getScheduledWorkflowStepsCleanupRetention(),
+                        ],
+                        'settingsTab' => $this->getCurrentTab(),
+                    ]
+                );
+            }
+        } catch (Throwable $th) {
+            $this->logger->error('Error enqueuing scripts: ' . $th->getMessage());
+        }
+    }
+
+    public function processFormSubmission()
+    {
+        if (isset($_POST['_postExpiratorMenuAdvanced_nonce']) && ! empty($_POST['_postExpiratorMenuAdvanced_nonce'])) {
+            if (
+                ! wp_verify_nonce(
+                    sanitize_key($_POST['_postExpiratorMenuAdvanced_nonce']),
+                    'postexpirator_menu_advanced'
+                )
+            ) {
+                wp_die(esc_html__('Form Validation Failure: Sorry, your nonce did not verify.', 'post-expirator'));
+            }
+
+            $experimentalFeaturesStatus = isset($_POST['future-experimental-features'])
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing
+            ? (int) $_POST['future-experimental-features']
+            : 0;
+            $this->settings->setExperimentalFeaturesStatus($experimentalFeaturesStatus);
+
+            $this->settings->setStepScheduleCompressedArgsStatus(false);
+
+            $stepScheduleCleanupStatus = isset($_POST['future-step-schedule-cleanup'])
+                ? (bool) $_POST['future-step-schedule-cleanup']
+                : false;
+            $this->settings->setScheduledWorkflowStepsCleanupStatus($stepScheduleCleanupStatus);
+
+            $stepScheduleCleanupRetention = isset($_POST['future-step-schedule-cleanup-retention'])
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing
+                ? (int) $_POST['future-step-schedule-cleanup-retention']
+                : 30;
+
+            if ($stepScheduleCleanupRetention < 1) {
+                $stepScheduleCleanupRetention = 30;
+            }
+
+            $this->settings->setScheduledWorkflowStepsCleanupRetention($stepScheduleCleanupRetention);
+
+            $preserveData = isset($_POST['expired-preserve-data-deactivating'])
+                ? (int) $_POST['expired-preserve-data-deactivating']
+                : 0;
+            $this->settings->setPreserveData($preserveData);
+
+            // Redirect to the same page with a success parameter
+            $redirect_url = add_query_arg(
+                'settings-updated',
+                'true',
+                admin_url('admin.php?page=publishpress-future-settings&tab=advanced')
             );
+            wp_redirect($redirect_url);
+            exit;
         }
     }
 
     private function getCurrentTab()
     {
-        $allowedTabs = array(
-            'general',
-            'defaults',
-            'display',
-            'editor',
+        $allowedTabs = [
             'diagnostics',
             'viewdebug',
             'advanced',
-            'tools'
-        );
+        ];
 
-        $allowedTabs = apply_filters(SettingsHooksAbstract::FILTER_ALLOWED_TABS, $allowedTabs);
+        $allowedTabs = $this->hooks->applyFilters(SettingsHooksAbstract::FILTER_ALLOWED_SETTINGS_TABS, $allowedTabs);
+        $defaultTab = $this->settings->getSettingsDefaultTab();
 
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : '';
+        $tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : $defaultTab;
 
-        if (empty($tab) || ! in_array($tab, $allowedTabs, true)) {
-            $tab = 'general';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        if (! in_array($tab, $allowedTabs, true)) {
+            $tab = $this->settings::SETTINGS_DEFAULT_TAB;
         }
 
         return $tab;
     }
 
-    public function processFormSubmission()
-    {
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing
-        if (empty($_POST)) {
-            return;
-        }
-
-        $tab = $this->getCurrentTab();
-
-        $methodName = 'saveTab' . ucfirst($tab);
-        if (method_exists($this, $methodName)) {
-            call_user_func([$this, $methodName]);
-        }
-
-        $this->hooks->doAction(SettingsHooksAbstract::ACTION_SAVE_TAB . $tab);
-    }
-
-    public function processToolsActions()
-    {
-        if (empty($_GET['action'])) {
-            return;
-        }
-
-        if ($_GET['action'] === 'future_migrate_legacy_post_expirations') {
-            if (! isset($_GET['nonce']) || ! \wp_verify_nonce(
-                    \sanitize_key($_GET['nonce']),
-                    'future-migrate-legacy-post-expirations'
-                )) {
-                wp_die(esc_html__('Form Validation Failure: Sorry, your nonce did not verify.', 'post-expirator'));
-            }
-
-            $this->cron->enqueueAsyncAction(V30000WPCronToActionsScheduler::HOOK, [], true);
-
-            wp_redirect(
-                admin_url(
-                    'admin.php?page=publishpress-future&tab=tools&message=legacy_post_expirations_migration_scheduled'
-                )
-            );
-            exit;
-        }
-
-        if ($_GET['action'] === 'future_restore_legacy_action_arguments') {
-            if (! isset($_GET['nonce']) || ! \wp_verify_nonce(
-                    \sanitize_key($_GET['nonce']),
-                    'future-restore-legacy-action-arguments'
-                )) {
-                wp_die(esc_html__('Form Validation Failure: Sorry, your nonce did not verify.', 'post-expirator'));
-            }
-
-            $this->cron->enqueueAsyncAction(V30001RestorePostMeta::HOOK, [], true);
-
-            wp_redirect(
-                admin_url(
-                    'admin.php?page=publishpress-future&tab=tools&message=legacy_post_expirations_data_restored'
-                )
-            );
-            exit;
-        }
-
-        if ($_GET['action'] === 'future_fix_db_schema') {
-            if (! isset($_GET['nonce']) || ! \wp_verify_nonce(
-                    \sanitize_key($_GET['nonce']),
-                    'future-fix-db-schema'
-                )) {
-                wp_die(esc_html__('Form Validation Failure: Sorry, your nonce did not verify.', 'post-expirator'));
-            }
-
-            ActionArgsSchema::createTableIfNotExists();
-
-            if (ActionArgsSchema::tableExists()) {
-                // phpcs:ignore WordPressVIPMinimum.Security.ExitAfterRedirect.NoExit
-                wp_redirect(
-                    admin_url(
-                        'admin.php?page=publishpress-future&tab=diagnostics&message=db_schema_fixed'
-                    )
-                );
-            } else {
-                // phpcs:ignore WordPressVIPMinimum.Security.ExitAfterRedirect.NoExit
-                wp_redirect(
-                    admin_url(
-                        'admin.php?page=publishpress-future&tab=diagnostics&message=db_schema_not_fixed'
-                    )
-                );
-            }
-            exit;
-        }
-    }
-
-    public function displayAdminNotices()
-    {
-        // phpcs:disable WordPress.Security.NonceVerification.Recommended
-        if (empty($_GET['message'])) {
-            return;
-        }
-
-        switch ($_GET['message']) {
-            case 'legacy_post_expirations_migration_scheduled':
-                $message = __(
-                    'The legacy future actions migration has been scheduled and will run asynchronously.',
-                    'post-expirator'
-                );
-                break;
-
-            case 'legacy_post_expirations_data_restored':
-                $message = __(
-                    'The legacy actions arguments restoration has been scheduled and will run asynchronously.',
-                    'post-expirator'
-                );
-                break;
-
-            case 'db_schema_fixed':
-                $message = __(
-                    'The database schema was fixed.',
-                    'post-expirator'
-                );
-                break;
-
-            case 'db_schema_not_fixed':
-                $message = __(
-                    'The database schema could not be fixed. Please, contact the support team.',
-                    'post-expirator'
-                );
-                break;
-            default:
-                $message = '';
-        }
-
-        if (! empty($message)) {
-            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message) . '</p></div>';
-        }
-        // phpcs:enable WordPress.Security.NonceVerification.Recommended
-    }
-
     public function initMigrations()
     {
-        $factory = $this->migrationsFactory;
-        $factory();
-    }
-
-    private function saveTabDefaults()
-    {
-        $settingsPostTypesModelFactory = $this->settingsPostTypesModelFactory;
-        $settingsModel = $settingsPostTypesModelFactory();
-
-        $postTypes = $settingsModel->getPostTypes();
-
-        if (isset($_POST['expirationdateSaveDefaults'])) {
-            if (! isset($_POST['_postExpiratorMenuDefaults_nonce']) || ! \wp_verify_nonce(
-                    \sanitize_key($_POST['_postExpiratorMenuDefaults_nonce']),
-                    'postexpirator_menu_defaults'
-                )) {
-                wp_die(esc_html__('Form Validation Failure: Sorry, your nonce did not verify.', 'post-expirator'));
-            }
-
-            $_POST = \filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
-
-            // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-            foreach ($postTypes as $postType) {
-                $settings = [];
-
-                if (isset($_POST['expirationdate_expiretype-' . $postType])) {
-                    $settings['expireType'] = \sanitize_key($_POST['expirationdate_expiretype-' . $postType]);
-                }
-
-                if (isset($_POST['expirationdate_autoenable-' . $postType])) {
-                    $settings['autoEnable'] = \intval($_POST['expirationdate_autoenable-' . $postType]);
-                }
-
-                if (isset($_POST['expirationdate_taxonomy-' . $postType])) {
-                    $settings['taxonomy'] = \sanitize_text_field($_POST['expirationdate_taxonomy-' . $postType]);
-                }
-
-                if (isset($_POST['expirationdate_terms-' . $postType])) {
-                    $settings['terms'] = \sanitize_text_field($_POST['expirationdate_terms-' . $postType]);
-                }
-
-                if (isset($_POST['expirationdate_activemeta-' . $postType])) {
-                    $settings['activeMetaBox'] = \sanitize_text_field($_POST['expirationdate_activemeta-' . $postType]);
-                }
-
-                if (isset($_POST['expirationdate_emailnotification-' . $postType])) {
-                    // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
-                    $settings['emailnotification'] = trim(
-                        \sanitize_text_field($_POST['expirationdate_emailnotification-' . $postType])
-                    );
-                }
-
-                $settings['default-expire-type'] = 'custom';
-
-                if (isset($_POST['expired-custom-date-' . $postType])) {
-                    $settings['default-custom-date'] = trim(
-                        \sanitize_text_field($_POST['expired-custom-date-' . $postType])
-                    );
-                }
-
-                $settings = $this->hooks->applyFilters(
-                    SettingsHooksAbstract::FILTER_SAVE_DEFAULTS_SETTINGS,
-                    $settings,
-                    $postType
-                );
-
-                $this->hooks->doAction(
-                    SettingsHooksAbstract::ACTION_SAVE_POST_TYPE_SETTINGS,
-                    $settings,
-                    $postType
-                );
-
-                // Save Settings
-                $settingsModel->updatePostTypesSettings($postType, $settings);
-            }
-            // phpcs:enable
+        try {
+            $factory = $this->migrationsFactory;
+            $factory();
+        } catch (Throwable $th) {
+            $this->logger->error('Error initializing migrations: ' . $th->getMessage());
         }
     }
 }

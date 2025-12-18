@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Debug;
@@ -24,6 +25,11 @@ interface DebugInterface
      * @return array
      */
     public function fetchAll();
+
+    /**
+     * @return array
+     */
+    public function fetchLatest($limit = 100);
 
     /**
      * @return void

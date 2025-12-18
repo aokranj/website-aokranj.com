@@ -1,10 +1,10 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Debug;
-
 
 use PublishPress\Future\Framework\Logger\LoggerInterface;
 use PublishPress\Future\Framework\ModuleInterface;
@@ -13,7 +13,7 @@ use PublishPress\Future\Modules\Debug\Controllers\Controller;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
-class Module implements ModuleInterface
+final class Module implements ModuleInterface
 {
     /**
      * @var HooksFacade

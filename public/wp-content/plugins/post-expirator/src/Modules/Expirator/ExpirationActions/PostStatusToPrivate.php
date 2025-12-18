@@ -8,9 +8,12 @@ use PublishPress\Future\Modules\Expirator\Models\ExpirablePostModel;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
+/**
+ * @deprecated 3.3.1 Deprecated in favor of ChangePostStatus
+ */
 class PostStatusToPrivate implements ExpirationActionInterface
 {
-    const SERVICE_NAME = 'expiration.actions.post_status_to_private';
+    public const SERVICE_NAME = 'expiration.actions.post_status_to_private';
 
     /**
      * @var ExpirablePostModel
@@ -53,7 +56,8 @@ class PostStatusToPrivate implements ExpirationActionInterface
         $newPostStatus = get_post_status_object('private');
 
         return sprintf(
-            __('Status has been successfully changed from "%s" to "%s".', 'post-expirator'),
+            // translators: 1: old post status, 2: new post status
+            __('Status has been successfully changed from "%1$s" to "%2$s".', 'post-expirator'),
             $oldPostStatus->label,
             $newPostStatus->label
         );
@@ -77,21 +81,19 @@ class PostStatusToPrivate implements ExpirationActionInterface
     /**
      * @return string
      */
-    public static function getLabel()
+    public static function getLabel(string $postType = ''): string
     {
         $newPostStatus = get_post_status_object('private');
 
         return sprintf(
+            // translators: %s: new post status
             __('Change status to %s', 'post-expirator'),
             $newPostStatus->label
         );
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getDynamicLabel()
+    public function getDynamicLabel($postType = '')
     {
-        return self::getLabel();
+        return self::getLabel($postType);
     }
 }

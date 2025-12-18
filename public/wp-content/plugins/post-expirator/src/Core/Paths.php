@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Core;
@@ -21,7 +22,7 @@ class Paths
 
     public function getVendorDirPath()
     {
-        return $this->getBaseDirPath() . '/vendor';
+        return PUBLISHPRESS_FUTURE_LIB_VENDOR_PATH;
     }
 
     public function getBaseDirPath()

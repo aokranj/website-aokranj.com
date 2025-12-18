@@ -8,13 +8,15 @@ defined('ABSPATH') or die('Direct access not allowed.');
 /**
  * Utility functions.
  */
+// phpcs:disable PSR1.Methods.CamelCapsMethodName.NotCamelCaps
+// phpcs:ignore PSR1.Classes.ClassDeclaration.MissingNamespace, Squiz.Classes.ValidClassName.NotCamelCaps
 class PostExpirator_Util
 {
-
     /**
      * Check if Block Editor is active.
      * Must only be used after plugins_loaded action is fired.
      *
+     * @deprecated 4.3.0
      * @return bool
      */
     public static function is_gutenberg_active()
@@ -57,6 +59,9 @@ class PostExpirator_Util
         return false;
     }
 
+    /**
+     * @deprecated 4.3.0
+     */
     public static function wp_timezone_string()
     {
         $tzString = wp_timezone_string();
@@ -68,6 +73,9 @@ class PostExpirator_Util
         return $tzString;
     }
 
+    /**
+     * @deprecated 4.3.0
+     */
     public static function get_timezone_offset()
     {
         $timezone = wp_timezone();
@@ -85,8 +93,22 @@ class PostExpirator_Util
         return $container->get(ServicesAbstract::DATETIME)->getWpDate($format, $timestamp);
     }
 
+    /**
+     * @deprecated 4.3.0
+     */
     public static function sanitize_array_of_integers($array)
     {
         return array_map('intval', (array)$array);
+    }
+
+    public static function formatBytes($bytes, $precision = 2)
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+
+        return round($bytes / pow(1024, $pow), $precision) . ' ' . $units[$pow];
     }
 }

@@ -4,7 +4,6 @@
  * Autoloads the classes.
  */
 
-
 namespace PublishPress\Future\Core;
 
 defined('ABSPATH') or die('Direct access not allowed.');
@@ -34,7 +33,7 @@ class Autoloader
         $baseDir = __DIR__ . '/../';
 
         // namespace prefix
-        $prefix = 'PublishPress\Future\\';
+        $prefix = 'PublishPress\\Future\\';
 
         // does the class use the namespace prefix?
         $len = strlen($prefix);

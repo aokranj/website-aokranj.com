@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator;
@@ -11,6 +12,8 @@ use PublishPress\Future\Framework\WordPress\Facade\DateTimeFacade;
 use PublishPress\Future\Framework\WordPress\Facade\ErrorFacade;
 use PublishPress\Future\Modules\Expirator\Interfaces\CronInterface;
 use PublishPress\Future\Modules\Expirator\Interfaces\SchedulerInterface;
+use PublishPress\Future\Modules\Expirator\Models\ExpirablePostModel;
+use PublishPress\Future\Modules\Expirator\Models\ExpirationActionsModel;
 
 use function tad\WPBrowser\vendorDir;
 
@@ -54,13 +57,19 @@ class ExpirationScheduler implements SchedulerInterface
     private $actionArgsModelFactory;
 
     /**
+     * @var ExpirationActionsModel
+     */
+    private $expirationActionsModel;
+
+    /**
      * @param HookableInterface $hooksFacade
      * @param CronInterface $cron
      * @param ErrorFacade $errorFacade
      * @param LoggerInterface $logger
      * @param DateTimeFacade $datetime
      * @param \Closure $postModelFactory
-     * @param $actionArgsModelFactory
+     * @param \Closure $actionArgsModelFactory
+     * @param ExpirationActionsModel $expirationActionsModel
      */
     public function __construct(
         $hooksFacade,
@@ -69,7 +78,8 @@ class ExpirationScheduler implements SchedulerInterface
         $logger,
         $datetime,
         $postModelFactory,
-        $actionArgsModelFactory
+        $actionArgsModelFactory,
+        $expirationActionsModel
     ) {
         $this->hooks = $hooksFacade;
         $this->cron = $cron;
@@ -78,6 +88,13 @@ class ExpirationScheduler implements SchedulerInterface
         $this->datetime = $datetime;
         $this->postModelFactory = $postModelFactory;
         $this->actionArgsModelFactory = $actionArgsModelFactory;
+        $this->expirationActionsModel = $expirationActionsModel;
+    }
+
+    private function convertLocalTimeToUtc($timestamp): int
+    {
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+        return (int)get_gmt_from_date(date('Y-m-d H:i:s', $timestamp), 'U');
     }
 
     /**
@@ -85,6 +102,29 @@ class ExpirationScheduler implements SchedulerInterface
      */
     public function schedule($postId, $timestamp, $opts)
     {
+
+        $factory = $this->actionArgsModelFactory;
+
+        $postModelFactory = $this->postModelFactory;
+        $postModel = $postModelFactory($postId);
+
+        $opts['date'] = $timestamp;
+        $opts['category'] = isset($opts['category']) ? $opts['category'] : [];
+        $opts['categoryTaxonomy'] = isset($opts['categoryTaxonomy']) ? $opts['categoryTaxonomy'] : '';
+        $opts['actionLabel'] = $this->expirationActionsModel->getLabelForAction($opts['expireType'], $postModel->getPostType());
+        $opts['postTitle'] = $postModel->getTitle();
+        $opts['postType'] = $postModel->getPostType();
+        $opts['postLink'] = $postModel->getPermalink();
+        $opts['postTypeLabel'] = $postModel->getPostTypeSingularLabel();
+        $opts['extraData'] = isset($opts['extraData']) ? $opts['extraData'] : $postModel->getExtraData();
+
+        if (isset($opts['extraData']['extraData'])) {
+            $opts['extraData'] = $opts['extraData']['extraData'];
+        }
+
+        $opts = $this->hooks->applyFilters(HooksAbstract::FILTER_PREPARE_POST_EXPIRATION_OPTS, $opts, $postId);
+        $timestamp = $this->convertLocalTimeToUtc($opts['date']);
+
         $this->hooks->doAction(HooksAbstract::ACTION_LEGACY_SCHEDULE, $postId, $timestamp, $opts);
 
         $this->unscheduleIfScheduled($postId, $timestamp);
@@ -114,14 +154,21 @@ class ExpirationScheduler implements SchedulerInterface
             return;
         }
 
-        $factory = $this->actionArgsModelFactory;
+        unset($opts['enabled']);
+        unset($opts['id']);
 
+        /**
+         * @var ActionArgsModelInterface $actionArgsModel
+         */
         $actionArgsModel = $factory();
-        $actionArgsModel->setCronActionId($actionId)
-            ->setPostId($postId)
-            ->setScheduledDateFromUnixTime($timestamp)
-            ->setArgs($opts)
-            ->add();
+        $actionArgsModel->setCronActionId($actionId);
+        $actionArgsModel->setPostId($postId);
+        if (! is_numeric($timestamp)) {
+            $timestamp = $actionArgsModel->convertISO8601DateToUnixTime($timestamp);
+        }
+        $actionArgsModel->setScheduledDateFromUnixTime($timestamp);
+        $actionArgsModel->setArgs($opts);
+        $id = $actionArgsModel->insert();
 
         $this->logger->debug(
             sprintf(
@@ -135,16 +182,33 @@ class ExpirationScheduler implements SchedulerInterface
             )
         );
 
+        $this->updateLegacyPostMetaUsedBy3rdPartySoftware($postId, $timestamp, $opts);
+    }
+
+    private function updateLegacyPostMetaUsedBy3rdPartySoftware(int $postId, int $timestamp, array $opts): void
+    {
         $postModelFactory = $this->postModelFactory;
         $postModel = $postModelFactory($postId);
 
-        // Metadata is used by 3rd party plugins.
-        $postModel->updateMeta('_expiration-date-type', isset($opts['expireType']) ? $opts['expireType'] : '');
-        $postModel->updateMeta('_expiration-date-status', 'saved');
-        $postModel->updateMeta('_expiration-date-taxonomy', isset($opts['categoryTaxonomy']) ? $opts['categoryTaxonomy'] : '');
-        $postModel->updateMeta('_expiration-date-categories', isset($opts['category']) ? $opts['category'] : '');
-        $postModel->updateMeta('_expiration-date', $timestamp);
-        $postModel->updateMeta('_expiration-date-options', $opts);
+        $type = isset($opts['expireType']) ? $opts['expireType'] : '';
+        $taxonomy = isset($opts['categoryTaxonomy']) ? $opts['categoryTaxonomy'] : '';
+        $terms = isset($opts['category']) ? $opts['category'] : '';
+        $newStatus = isset($opts['newStatus']) ? $opts['newStatus'] : '';
+
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TIMESTAMP, $timestamp);
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_STATUS, 'saved');
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TYPE, $type);
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_POST_STATUS, $newStatus);
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TAXONOMY, $taxonomy);
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TERMS, $terms);
+        $postModel->updateMeta(PostMetaAbstract::EXPIRATION_DATE_OPTIONS, $opts);
+
+        $postModel->updateMeta(
+            ExpirablePostModel::FLAG_METADATA_HASH,
+            $postModel->calcMetadataHash()
+        );
+
+        $postModel->deleteMeta(ExpirablePostModel::LEGACY_FLAG_METADATA_HASH);
     }
 
     private function unscheduleIfScheduled($postId, $timestamp)
@@ -174,6 +238,16 @@ class ExpirationScheduler implements SchedulerInterface
 
         if ($this->postIsScheduled($postId)) {
             $result = $this->cron->clearScheduledAction(HooksAbstract::ACTION_RUN_WORKFLOW, ['postId' => $postId, 'workflow' => 'expire']);
+            // Try to clear the legacy actions if the new one was not found
+            if (! $result) {
+                $result = $this->cron->clearScheduledAction(HooksAbstract::ACTION_LEGACY_RUN_WORKFLOW, ['postId' => $postId, 'workflow' => 'expire']);
+            }
+            if (! $result) {
+                $result = $this->cron->clearScheduledAction(HooksAbstract::ACTION_LEGACY_EXPIRE_POST1, $postId);
+            }
+            if (! $result) {
+                $result = $this->cron->clearScheduledAction(HooksAbstract::ACTION_LEGACY_EXPIRE_POST2, $postId);
+            }
 
             $errorFeedback = null;
             if ($this->error->isWpError($result)) {
@@ -188,14 +262,14 @@ class ExpirationScheduler implements SchedulerInterface
 
             $this->logger->debug($message);
 
-            $this->deleteExpirationPostMeta($postId);
+            $this->disableExpirationPostMeta($postId);
         }
     }
 
-    protected function deleteExpirationPostMeta($postId)
+    protected function disableExpirationPostMeta($postId)
     {
         $postModelFactory = $this->postModelFactory;
         $postModel = $postModelFactory($postId);
-        $postModel->deleteExpirationPostMeta();
+        $postModel->disableExpiration();
     }
 }

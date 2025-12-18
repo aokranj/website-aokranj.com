@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2023. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Migrations;
@@ -9,20 +10,21 @@ use PublishPress\Future\Core\HookableInterface;
 use PublishPress\Future\Modules\Expirator\HooksAbstract as ExpiratorHooks;
 use PublishPress\Future\Modules\Expirator\Interfaces\CronInterface;
 use PublishPress\Future\Modules\Expirator\Interfaces\MigrationInterface;
+use PublishPress\Future\Modules\Expirator\PostMetaAbstract;
 use PublishPress\Future\Modules\Expirator\Schemas\ActionArgsSchema;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
 class V30000WPCronToActionsScheduler implements MigrationInterface
 {
-    const HOOK = ExpiratorHooks::ACTION_MIGRATE_WPCRON_EXPIRATIONS;
+    public const HOOK = ExpiratorHooks::ACTION_MIGRATE_WPCRON_EXPIRATIONS;
 
     /**
      * @var \PublishPress\Future\Modules\Expirator\Interfaces\CronInterface
      */
     private $cronAdapter;
 
-    private $hooksFacade;
+    private $hooks;
 
     /**
      * @var \Closure
@@ -31,20 +33,18 @@ class V30000WPCronToActionsScheduler implements MigrationInterface
 
     /**
      * @param \PublishPress\Future\Modules\Expirator\Interfaces\CronInterface $cronAdapter
-     * @param \PublishPress\Future\Core\HookableInterface $hooksFacade
+     * @param \PublishPress\Future\Core\HookableInterface $hooks
      */
     public function __construct(
         CronInterface $cronAdapter,
-        HookableInterface $hooksFacade,
+        HookableInterface $hooks,
         \Closure $expirablePostModelFactory
     ) {
         $this->cronAdapter = $cronAdapter;
-        $this->hooksFacade = $hooksFacade;
+        $this->hooks = $hooks;
 
-        ActionArgsSchema::createTableIfNotExists();
-
-        $this->hooksFacade->addAction(self::HOOK, [$this, 'migrate']);
-        $this->hooksFacade->addAction(
+        $this->hooks->addAction(self::HOOK, [$this, 'migrate']);
+        $this->hooks->addAction(
             ExpiratorHooks::FILTER_ACTION_SCHEDULER_LIST_COLUMN_HOOK,
             [$this, 'formatLogActionColumn'],
             10,
@@ -94,20 +94,17 @@ class V30000WPCronToActionsScheduler implements MigrationInterface
             $factory = $this->expirablePostModelFactory;
             $postModel = $factory($postId);
 
-            $expireType = $postModel->getMeta('_expiration-date-type', true);
-            $expirationEnabled = $postModel->getMeta('_expiration-date-status', true) === 'saved';
-            $expirationTaxonomy = $postModel->getMeta('_expiration-date-taxonomy', true);
-            $expirationCategories = (array)$postModel->getMeta('_expiration-date-categories', true);
+            $expireType = $postModel->getMeta(PostMetaAbstract::EXPIRATION_TYPE, true);
+            $expirationTaxonomy = $postModel->getMeta(PostMetaAbstract::EXPIRATION_TAXONOMY, true);
+            $expirationCategories = (array)$postModel->getMeta(PostMetaAbstract::EXPIRATION_TERMS, true);
 
             $args = [
                 'expireType' => $expireType,
                 'category' => $expirationCategories,
                 'categoryTaxonomy' => $expirationTaxonomy,
-                'enabled' => $expirationEnabled,
-                'date' => $eventData['time'],
             ];
 
-            do_action(ExpiratorHooks::ACTION_SCHEDULE_POST_EXPIRATION, $postId, $eventData['time'], $args);
+            $this->hooks->doAction(ExpiratorHooks::ACTION_SCHEDULE_POST_EXPIRATION, $postId, $eventData['time'], $args);
 
             wp_unschedule_event($eventData['time'], $eventData['hook'], $eventData['args']);
         }
@@ -121,7 +118,7 @@ class V30000WPCronToActionsScheduler implements MigrationInterface
     public function formatLogActionColumn($text, $row)
     {
         if ($row['hook'] === self::HOOK) {
-            return __('Migrate legacy scheduled actions after v3.0.0', 'publishpress-future');
+            return __('Migrate legacy scheduled actions after v3.0.0', 'post-expirator');
         }
         return $text;
     }

@@ -1,7 +1,6 @@
 <?php
 
 use PublishPress\Future\Core\DI\Container;
-use PublishPress\Future\Core\DI\ContainerNotInitializedException;
 use PublishPress\Future\Core\DI\ServicesAbstract as Services;
 use PublishPress\Future\Modules\Debug\DebugInterface;
 
@@ -12,6 +11,7 @@ defined('ABSPATH') or die('Direct access not allowed.');
  *
  * @deprecated 2.8.0
  */
+// phpcs:ignore PSR1.Classes.ClassDeclaration.MissingNamespace
 class PostExpiratorDebug
 {
     /**
@@ -21,7 +21,6 @@ class PostExpiratorDebug
 
     /**
      * Constructor.
-     * @throws ContainerNotInitializedException
      */
     public function __construct()
     {

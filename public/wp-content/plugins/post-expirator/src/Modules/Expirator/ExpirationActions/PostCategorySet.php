@@ -2,6 +2,8 @@
 
 namespace PublishPress\Future\Modules\Expirator\ExpirationActions;
 
+use PublishPress\Future\Core\DI\Container;
+use PublishPress\Future\Core\DI\ServicesAbstract;
 use PublishPress\Future\Framework\WordPress\Models\TermsModel;
 use PublishPress\Future\Modules\Expirator\ExpirationActionsAbstract;
 use PublishPress\Future\Modules\Expirator\Interfaces\ExpirationActionInterface;
@@ -11,7 +13,9 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class PostCategorySet implements ExpirationActionInterface
 {
-    const SERVICE_NAME = 'expiration.actions.post_category_set';
+    use TaxonomyRelatedTrait;
+
+    public const SERVICE_NAME = 'expiration.actions.post_category_set';
 
     /**
      * @var ExpirablePostModel
@@ -50,6 +54,7 @@ class PostCategorySet implements ExpirationActionInterface
     {
         if (empty($this->log)) {
             return sprintf(
+                // translators: %s is the post type singular label
                 __('No terms were changed on the %s.', 'post-expirator'),
                 strtolower($this->postModel->getPostTypeSingularLabel())
             );
@@ -60,8 +65,9 @@ class PostCategorySet implements ExpirationActionInterface
         $termsModel = new TermsModel();
 
         return sprintf(
+            // translators: 1: taxonomy name, 2: post type singular label, 3: updated terms, 4: original terms
             __(
-                'The following terms (%s) were set to the %s: "%s". The old list of terms on the post was: %s.',
+                'The following terms (%1$s) were set to the %2$s: "%3$s". The old list of terms on the post was: %4$s.',
                 'post-expirator'
             ),
             $this->log['expiration_taxonomy'],
@@ -97,19 +103,22 @@ class PostCategorySet implements ExpirationActionInterface
         return ! $resultIsError;
     }
 
-    /**
-     * @return string
-     */
-    public static function getLabel()
+    public static function getLabel(string $postType = ''): string
     {
-        return __('Remove all current terms and add new terms', 'post-expirator');
+        // translators: %s is the taxonomy name (plural)
+        $label = __('Replace all %s', 'post-expirator');
+
+        if (! empty($postType)) {
+            $taxonomy = self::getTaxonomyLabel($postType);
+
+            $label = sprintf($label, $taxonomy);
+        }
+
+        return $label;
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getDynamicLabel()
+    public function getDynamicLabel($postType = '')
     {
-        return self::getLabel();
+        return self::getLabel($postType);
     }
 }

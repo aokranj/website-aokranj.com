@@ -1,10 +1,10 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Models;
-
 
 use PublishPress\Future\Framework\WordPress\Exceptions\NonexistentTermException;
 
@@ -56,13 +56,16 @@ class TermModel
 
     /**
      * @return bool
-     * @throws \PublishPress\Future\Framework\WordPress\Exceptions\NonexistentTermException
      */
     public function termExists()
     {
-        $instance = $this->getTermInstance();
+        try {
+            $instance = $this->getTermInstance();
 
-        return is_object($instance);
+            return is_object($instance);
+        } catch (NonexistentTermException $e) {
+            return false;
+        }
     }
 
     public function getTermID()
@@ -71,12 +74,16 @@ class TermModel
     }
 
     /**
-     * @throws \PublishPress\Future\Framework\WordPress\Exceptions\NonexistentTermException
+     * @return string
      */
     public function getName()
     {
-        $term = $this->getTermInstance();
+        try {
+            $term = $this->getTermInstance();
 
-        return $term->name;
+            return $term->name;
+        } catch (NonexistentTermException $e) {
+            return '';
+        }
     }
 }
