@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Core;
@@ -53,9 +54,33 @@ interface HookableInterface
      */
     public function doAction($actionName, ...$args);
 
+    public static function registerActivationHook($pluginFile, $callback);
+
     /**
      * @param string $pluginFile
      * @param callable $callback
      */
-    public function registerDeactivationHook($pluginFile, $callback);
+    public static function registerDeactivationHook($pluginFile, $callback);
+
+    public function ksesRemoveFilters();
+
+    /**
+     * Removes a filter.
+     *
+     * @param string $filterName
+     * @param callable $callback
+     * @param integer $priority
+     * @return void
+     */
+    public function removeFilter($filterName, $callback, $priority = 10);
+
+    /**
+     * Removes an action.
+     *
+     * @param string $actionName
+     * @param callable $callback
+     * @param integer $priority
+     * @return void
+     */
+    public function removeAction($actionName, $callback, $priority = 10);
 }

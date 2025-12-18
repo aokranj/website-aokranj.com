@@ -1,0 +1,55 @@
+.sb-preview-container {
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.sb-preview-header {
+    background: #f8f9fa;
+    padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.sb-preview-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.sb-preview-wrapper {
+    z-index: 1;
+    padding: 15px;
+    background: #f8f9fa;
+    min-height: 40px;
+}
+
+.sb-preview-banner {
+    z-index: 99;
+    width: 100%;
+    text-align: center;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sb-preview-text {
+    font-weight: 700;
+    padding: 12px 20px;
+    position: relative;
+}
+
+.sb-preview-text a {
+    text-decoration: underline;
+}
+
+/* Sticky preview styles */
+.sb-preview-sticky {
+    border-radius: 8px;
+    transition: box-shadow 0.2s ease;
+}
+
+.sb-preview-placeholder {
+    background: transparent;
+}

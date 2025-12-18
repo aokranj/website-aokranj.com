@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Facade;
@@ -64,7 +65,7 @@ class OptionsFacade
     public function getOptionsWithPrefix($prefix)
     {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $options = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT option_name, option_value FROM $wpdb->options WHERE option_name LIKE %s",

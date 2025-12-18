@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Models;
@@ -52,5 +53,10 @@ class UserModel
         $userInstance = $this->getUserInstance();
 
         return $userInstance->has_cap($capability);
+    }
+
+    public function getId(): int
+    {
+        return $this->userId;
     }
 }

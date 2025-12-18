@@ -1,18 +1,21 @@
-=== Simple Banner - An easy to use Banner/Bar/Notification/Announcement for the top or bottom of your website ===
+=== Simple Banner - Easily add multiple Banners/Bars/Notifications/Announcements to the top or bottom of your website ===
 Contributors: rpetersen29
 Donate link: https://www.paypal.me/rpetersenDev
-Tags: banner, bar, top, announcement, notification, simple, bulletin, notice, cta, free
+Tags: banner, bar, announcement, notification, notice
 Requires at least: 3.0.1
-Tested up to: 6.2.0
-Stable tag: 2.15.2
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Tested up to: 6.9.0
+Stable tag: 3.1.3
+License: GPLv3
+License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
-Display a simple banner/bar at the top or bottom of your website.
+Display a simple banner/bar at the top or bottom of your website. Now with multi-banner support.
 
 == Description ==
 
 This plugin makes it easy to display a simple announcement banner or bar at the top of your website. You can easily customize the color of the links, text, and background of the bar from within the settings. You can also customize to your heart's desire by adding your own custom CSS. There's also a fancy preview section within the settings so you can see your changes before you save them.
+
+= Now with multi-banner support =
+With Pro features you can display up to 5 separate banners on your site. Banners can be shown simultaneously or plan weeks of banners by showing them consecutively. 
 
 == Installation ==
 
@@ -55,22 +58,7 @@ first clear your browser cache and if that doesn't work, look for any plugin tha
 
 = Why is my banner covering my header or behind my header? =
 
-Your theme probably uses absolute positioning for its header in this case. Try changing the positioning of your banner and see if that helps.
-This changes the <code>position</code> CSS attribute of the banner. More information can be found <a target="_blank" href="https://www.w3schools.com/cssref/pr_class_position.asp">here</a>. If none of this works, you may need a custom solution for your banner.
-You can either try to find another plugin that suits your needs or you can purchase the pro version and open a support ticket to fix your situation.
-
-= My homepage isn't disabled even though I set it as disabled. =
-
-Some themes use a page id of 1 for the homepage, other themes set that id dynamically. This has recently been fixed, but if you are still
-experiencing issues, please open a support ticket.
-In the meantime you can use the following custom JavaScript to disable on your homepage:
-
-`document.addEventListener('DOMContentLoaded', function(){
-  if (window.location.href === "YOUR_WEBSITE_URL_HERE"){
-    document.getElementById('simple-banner').remove();
-  }
-}, false);
-`
+Your theme probably uses absolute positioning for its header in this case. Try changing the positioning of your banner or change "Prepend element" to <code><header></code> and see if that helps. If none of this works, you may need a custom solution for your banner. You can either try to find another plugin that suits your needs or you can purchase the pro version and open a support ticket to fix your situation.
 
 = Is there a Pro version? =
 
@@ -90,19 +78,9 @@ You can clear your browser's cookies or in the browser's console you can execute
 
 You can also set your Close button expiration to blank, 0, or a date in the past. This method may require a refresh or two of the browser on your website page.
 
-= How do I disable the banner in my posts? =
-
-This feature is being actively developed, in the meantime you can use this custom JavaScript:
-
-`document.addEventListener('DOMContentLoaded', function(){
-  if (window.location.pathname.includes("post")){
-    document.getElementById('simple-banner').remove();
-  }
-}, false);
-`
 = I have the Divi theme and the banner isn't showing. =
 
-Set your banner position to <code>relative</code> and try this in 'Website Custom CSS':
+Try setting the "Prepend element" setting to <code>header</code>. If that doesn't work, set your banner position to <code>relative</code> and try this in 'Website Custom CSS':
 
 `#main-header:not(.et-fixed-header) {
   position: relative;
@@ -117,8 +95,78 @@ Set your banner position to <code>relative</code> and try this in 'Website Custo
 2. This is the second screen shot.
 3. This is the third screen shot.
 4. This is the settings page... and the fourth screen shot.
+4. This is the fifth screen shot.
 
 == Changelog ==
+
+= 3.1.3 =
+* Test against wp 6.9.0
+
+= 3.1.2 =
+* Bug fixes
+
+= 3.1.1 =
+* Bug fixes
+
+= 3.1.0 =
+* New visual updates
+
+= 3.0.10 =
+* Bug fixes, test against wp 6.8.2
+
+= 3.0.9 =
+* Bug fixes
+
+= 3.0.8 =
+* Test against wp 6.8.1, style changes
+
+= 3.0.7 =
+* Test against wp 6.8.0, minor bugfix
+
+= 3.0.6 =
+* Clear caches on settings save
+
+= 3.0.5 =
+* Test against wp 6.7.2, minor bugfixes
+
+= 3.0.4 =
+* Test against wp 6.7.1, minor bugfixes
+
+= 3.0.3 =
+* Add back wp_body_open
+
+= 3.0.2 =
+* False text bug fix
+
+= 3.0.1 =
+* Bug fix, check for undefined
+
+= 3.0.0 =
+* New multi-banner feature, removed support for wp_body_open
+
+= 2.17.4 =
+* tested to WP 6.6.1
+
+= 2.17.3 =
+* Bug fixes
+
+= 2.17.2 =
+* Bug fixes
+
+= 2.17.1 =
+* Fix relative paths in preview banner, tested to WP 6.5
+
+= 2.17.0 =
+* New disabled page paths feature
+
+= 2.16.0 =
+* New prepend element feature
+
+= 2.15.4 =
+* Bug fixes
+
+= 2.15.3 =
+* New start after date feature
 
 = 2.15.2 =
 * z-index now configurable
@@ -338,6 +386,75 @@ Set your banner position to <code>relative</code> and try this in 'Website Custo
 * First Version.
 
 == Upgrade Notice ==
+
+= 3.1.3 =
+* Test against wp 6.9.0
+
+= 3.1.2 =
+* Bug fixes
+
+= 3.1.1 =
+* Bug fixes
+
+= 3.1.0 =
+* New visual updates
+
+= 3.0.10 =
+* Bug fixes, test against wp 6.8.2
+
+= 3.0.9 =
+* Bug fixes
+
+= 3.0.8 =
+* Test against wp 6.8.1, style changes
+
+= 3.0.7 =
+* Test against wp 6.8.0, minor bugfix
+
+= 3.0.6 =
+* Clear caches on settings save
+
+= 3.0.5 =
+* Test against wp 6.7.2, minor bugfixes
+
+= 3.0.4 =
+* Test against wp 6.7.1, minor bugfixes
+
+= 3.0.3 =
+* Add back wp_body_open
+
+= 3.0.2 =
+* False text bug fix
+
+= 3.0.1 =
+* Bug fix, check for undefined
+
+= 3.0.0 =
+* New multi-banner feature, removed support for wp_body_open
+
+= 2.17.4 =
+* tested to WP 6.6.1
+
+= 2.17.3 =
+* Bug fixes
+
+= 2.17.2 =
+* Bug fixes
+
+= 2.17.1 =
+* Fix relative paths in preview banner, tested to WP 6.5
+
+= 2.17.0 =
+* New disabled page paths feature
+
+= 2.16.0 =
+* New prepend element feature
+
+= 2.15.4 =
+* Bug fixes
+
+= 2.15.3 =
+* New start after date feature
 
 = 2.15.2 =
 * z-index now configurable

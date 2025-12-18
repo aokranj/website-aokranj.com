@@ -6,6 +6,11 @@ ul.pe-list > li {
 	margin-left: 3%;
 }
 
+ul.pe-list ul {
+    margin-left: 20px;
+    list-style: circle;
+}
+
 .pe-scroll {
 	height: 300px;
 	overflow-y: scroll;
@@ -67,6 +72,14 @@ span.post-expiration-attributes {
 
 .pe-event-post {
 	cursor: help;
+}
+
+.pe-post-type-select {
+    margin-top: 10px;
+}
+
+.pe-post-type-select .components-base-control__field {
+    margin-bottom: 0 !important;
 }
 
 .post-expirator-timestamp {
@@ -179,6 +192,17 @@ span.post-expiration-attributes {
     border: 1px solid #655897;
 }
 
+.pp-pro-loc-icon {
+    cursor: pointer;
+    background: #FCB223;
+    color: #000;
+    border-radius: 100%;
+    width: 24px;
+    height: 24px;
+    box-sizing: border-box;
+    margin-left: 5px !important;
+}
+
 #screen-options-wrap label[for^="pp_boxes_banner-hide"],
 #pp_boxes_banner .postbox-header:not(.pp-advert),
 #screen-options-wrap label[for^="ppmacf_banner-hide"],
@@ -222,4 +246,168 @@ span.post-expiration-attributes {
     .upgrade-btn a {
         max-width: 170px;
     }
+}
+
+.publishpres-future-token-field {
+    background: white;
+    border-radius: 4px;
+}
+
+.pp-settings-field-row {
+    margin-bottom: 6px;
+}
+
+span.description,
+p.description,
+.form-table td p.description {
+    font-size: 13px;
+    margin: 2px 0 5px;
+    color: #8d929a;
+}
+
+.pp-settings-field-row .description.offset {
+    margin-left: 24px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+#publishpress-future-settings-post-types .notice {
+    padding-top: 14px;
+    width: 100%;
+}
+
+.future-action-pending input {
+    background-color: #f0ad4e;
+}
+
+
+/**
+ * Spinner
+ */
+
+.publishpress-future-loading {
+    position: relative;
+}
+
+.publishpress-future-spinner {
+    display: inline-block;
+    position: absolute;
+    width: 80px;
+    height: 80px;
+}
+
+.publishpress-future-spinner div {
+    box-sizing: border-box;
+    display: block;
+    position: absolute;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border: 8px solid #916ba6;
+    border-radius: 50%;
+    animation: publishpress-future-spinner 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: #916ba6 transparent transparent transparent;
+}
+
+.publishpress-future-spinner div:nth-child(1) {
+    animation-delay: -0.45s;
+}
+
+.publishpress-future-spinner div:nth-child(2) {
+    animation-delay: -0.3s;
+}
+
+.publishpress-future-spinner div:nth-child(3) {
+    animation-delay: -0.15s;
+}
+
+@keyframes publishpress-future-spinner {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.publishpress-future-loading-input .publishpress-future-spinner {
+    position: absolute;
+    top: 8px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+}
+
+.publishpress-future-loading-input .publishpress-future-spinner div {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    border-width: 3px;
+}
+
+/* Notices  */
+.publishpress-future-notice {
+    padding: 10px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    width: 100%;
+}
+
+.publishpress-future-notice-error {
+    background-color: #f2dede;
+    border-color: #deb2ba;
+    color: #a94442;
+}
+
+#diagnostics-database-schema-check ul {
+    padding-left: 0;
+    margin-left: 44px;
+}
+
+#diagnostics-database-schema-check ul li {
+    list-style-type: disc;
+}
+
+.pp-debug-log textarea {
+    width: 100%;
+    height: 500px;
+    font-size: 12px;
+    font-family: monospace;
+    background-color: #f9f9f9;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    padding: 10px;
+    text-wrap: nowrap;
+}
+
+.pp-debug-log-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start;
+}
+
+.pp-debug-log-count {
+    margin-bottom: 10px;
+}
+
+.pp-debug-log-count select {
+    margin-left: 5px;
+}
+
+.pp-settings-title {
+    display: inline-block;
+    margin-right: 5px !important;
+}
+
+#pe-settings-tabs {
+    margin-top: 10px;
 }

@@ -1,15 +1,18 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Debug;
-
 
 use PublishPress\Future\Framework\Logger\LoggerInterface;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
+/**
+ * @deprecated 4.1.0 Use the logger facade instead.
+ */
 class Debug implements DebugInterface
 {
     /**
@@ -52,6 +55,14 @@ class Debug implements DebugInterface
     public function fetchAll()
     {
         return $this->logger->fetchAll();
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function fetchLatest($limit = 100)
+    {
+        return $this->logger->fetchLatest($limit);
     }
 
     /**

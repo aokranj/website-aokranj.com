@@ -1,12 +1,19 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Models;
 
+use PublishPress\Future\Core\HookableInterface;
+use PublishPress\Future\Framework\Logger\LoggerInterface;
 use PublishPress\Future\Framework\WordPress\Exceptions\NonexistentPostException;
+use PublishPress\Future\Framework\WordPress\Exceptions\NonexistentTermException;
+use PublishPress\Future\Modules\Expirator\HooksAbstract;
 use WP_Post;
+
+use function wp_update_post;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
@@ -28,11 +35,21 @@ class PostModel
     protected $termModelFactory;
 
     /**
-     * @param int|\WP_Post $post
-     * @param \Closure $termModelFactory
+     * @var HookableInterface
      */
-    public function __construct($post, $termModelFactory)
-    {
+    protected $hooks;
+
+    /**
+     * @var LoggerInterface
+     */
+    protected $logger;
+
+    public function __construct(
+        $post,
+        $termModelFactory,
+        HookableInterface $hooks,
+        LoggerInterface $logger
+    ) {
         if (is_object($post)) {
             $this->postInstance = $post;
             $this->postId = $post->ID;
@@ -43,6 +60,8 @@ class PostModel
         }
 
         $this->termModelFactory = $termModelFactory;
+        $this->hooks = $hooks;
+        $this->logger = $logger;
     }
 
     /**
@@ -53,13 +72,38 @@ class PostModel
      */
     public function setPostStatus($newPostStatus)
     {
-        $post = $this->getPostInstance();
+        if ($newPostStatus === 'publish') {
+            return $this->publish(false);
+        }
 
-        return $this->update(
-            [
-                'post_status' => $newPostStatus,
-            ]
-        );
+        $postData = [
+            'post_status' => $newPostStatus,
+        ];
+
+        return $this->update($postData);
+    }
+
+    /**
+     * @param bool $updateDateInFuture
+     *
+     * @return bool
+     * @throws \PublishPress\Future\Framework\WordPress\Exceptions\NonexistentPostException
+     */
+    public function publish($updateDateInFuture = true)
+    {
+        if ($updateDateInFuture) {
+            $postData = ['post_status' => 'publish'];
+            $currentPostDate = get_post_field('post_date', $this->getPostId());
+
+            if (strtotime($currentPostDate) > current_time('timestamp')) {
+                $postData['post_date'] = current_time('mysql');
+                $postData['post_date_gmt'] = current_time('mysql', true);
+            }
+
+            $this->update($postData);
+        }
+
+        return wp_publish_post($this->getPostId()) ? true : false;
     }
 
     /**
@@ -74,17 +118,19 @@ class PostModel
             $data
         );
 
-        return \wp_update_post($data) > 0;
+        return wp_update_post($data) > 0;
     }
 
     /**
      * @param string $metaKey
      * @param mixed $metaValue
+     * @param bool $unique
+     *
      * @return false|int
      */
-    public function addMeta($metaKey, $metaValue = null)
+    public function addMeta($metaKey, $metaValue = null, $unique = true)
     {
-        return add_post_meta($this->getPostId(), $metaKey, $metaValue);
+        return add_post_meta($this->getPostId(), $metaKey, $metaValue, $unique);
     }
 
     /**
@@ -98,42 +144,51 @@ class PostModel
             $metaKey = [$metaKey => $metaValue];
         }
 
-        $callback = function ($value, $key) {
+        $postId = $this->getPostId();
+
+        foreach ($metaKey as $key => $value) {
             \update_post_meta(
-                $this->getPostId(),
+                $postId,
                 \sanitize_key($key),
                 $value
             );
-        };
-
-        // TODO: Replace array_walk with foreach.
-        array_walk($metaKey, $callback);
+        }
     }
 
     /**
      * @param string|array $metaKey
+     * @param mixed $metaValue
      * @return void
      */
-    public function deleteMeta($metaKey)
+    public function deleteMeta($metaKey, $metaValue = null)
     {
         if (! is_array($metaKey)) {
             $metaKey = [$metaKey];
         }
 
-        $callback = function ($key) {
-            \delete_post_meta(
-                $this->getPostId(),
-                \sanitize_key($key)
-            );
-        };
+        $postId = $this->getPostId();
 
-        // TODO: Replace array_walk with foreach.
-        array_walk($metaKey, $callback);
+        foreach ($metaKey as $key) {
+            \delete_post_meta(
+                $postId,
+                \sanitize_key($key),
+                $metaValue
+            );
+        }
     }
 
     public function getMeta($metaKey, $single = false)
     {
-        return get_post_meta($this->getPostId(), $metaKey, $single);
+        $postId = $this->getPostId();
+
+        return get_post_meta($postId, $metaKey, $single);
+    }
+
+    public function metadataExists($metaKey)
+    {
+        $postId = $this->getPostId();
+
+        return metadata_exists('post', $postId, $metaKey);
     }
 
     /**
@@ -189,9 +244,9 @@ class PostModel
         return get_edit_post_link($this->getPostId());
     }
 
-    public function getPostId()
+    public function getPostId(): int
     {
-        return $this->postId;
+        return (int)$this->postId;
     }
 
     public function getTerms($taxonomy = 'post_tag', $args = [])
@@ -211,7 +266,16 @@ class PostModel
         $terms = $this->getTerms($taxonomy, $args);
 
         foreach ($terms as &$term) {
-            $term = $term->getName();
+            try {
+                $term = $term->getName();
+            } catch (NonexistentTermException $e) {
+                $this->logger->error(
+                    'Nonexistent term: {term} in {method}',
+                    ['term' => $term, 'method' => __METHOD__]
+                );
+
+                continue;
+            }
         }
 
         return $terms;
@@ -238,9 +302,14 @@ class PostModel
         return wp_set_object_terms($this->getPostId(), $termIDs, $taxonomy, false);
     }
 
-    public function delete()
+    public function delete(bool $force = true): bool
     {
-        return wp_delete_post($this->getPostId()) !== false;
+        return wp_delete_post($this->getPostId(), $force) !== false;
+    }
+
+    public function trash()
+    {
+        return wp_trash_post($this->getPostId());
     }
 
     public function stick()

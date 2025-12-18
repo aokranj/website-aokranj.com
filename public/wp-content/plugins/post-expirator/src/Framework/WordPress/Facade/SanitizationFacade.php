@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Facade;
@@ -16,5 +17,10 @@ class SanitizationFacade
     public function sanitizeKey($key)
     {
         return sanitize_key($key);
+    }
+
+    public function sanitizeTextField($value)
+    {
+        return sanitize_text_field($value);
     }
 }

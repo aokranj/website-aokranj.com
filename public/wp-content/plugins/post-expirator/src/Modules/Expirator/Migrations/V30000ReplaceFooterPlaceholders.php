@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2023. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Migrations;
@@ -14,7 +15,7 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class V30000ReplaceFooterPlaceholders implements MigrationInterface
 {
-    const HOOK = ExpiratorHooks::ACTION_MIGRATE_REPLACE_FOOTER_PLACEHOLDERS;
+    public const HOOK = ExpiratorHooks::ACTION_MIGRATE_REPLACE_FOOTER_PLACEHOLDERS;
 
     private $hooksFacade;
     /**
@@ -67,7 +68,7 @@ class V30000ReplaceFooterPlaceholders implements MigrationInterface
     public function formatLogActionColumn($text, $row)
     {
         if ($row['hook'] === self::HOOK) {
-            return __('Migrate legacy footer placeholders after v3.0.0', 'publishpress-future');
+            return __('Migrate legacy footer placeholders after v3.0.0', 'post-expirator');
         }
         return $text;
     }

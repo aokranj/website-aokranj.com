@@ -1,16 +1,21 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Models;
 
-use PublishPress\Future\Modules\Expirator\Schemas\ActionArgsSchema;
+use PublishPress\Future\Modules\Expirator\ExpirationActionsAbstract;
+use PublishPress\Future\Modules\Expirator\Interfaces\ActionArgsModelInterface;
+use PublishPress\Future\Framework\Database\Interfaces\DBTableSchemaInterface;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
-class ActionArgsModel
+class ActionArgsModel implements ActionArgsModelInterface
 {
+    private const DATE_FORMAT_ISO_8601 = 'Y-m-d H:i:s';
+
     /**
      * @var int
      */
@@ -56,11 +61,19 @@ class ActionArgsModel
      */
     private $expirationActionsModel;
 
-    public function __construct(ExpirationActionsModel $expirationActionsModel)
-    {
-        $this->tableName = ActionArgsSchema::getTableName();
+    /**
+     * @var DBTableSchemaInterface
+     */
+    private $tableSchema;
 
+    public function __construct(
+        ExpirationActionsModel $expirationActionsModel,
+        DBTableSchemaInterface $tableSchema
+    ) {
         $this->expirationActionsModel = $expirationActionsModel;
+        $this->tableSchema = $tableSchema;
+
+        $this->tableName = $this->tableSchema->getTableName();
     }
 
     private function setAttributesFromRow($row)
@@ -73,18 +86,31 @@ class ActionArgsModel
             $this->createdAt = $row->created_at;
             $this->enabled = absint($row->enabled) === 1;
             $this->args = json_decode($row->args, true);
+
+            if (isset($this->args['expireType'])) {
+                if ($this->args['expireType'] === ExpirationActionsAbstract::POST_STATUS_TO_DRAFT) {
+                    $this->args['expireType'] = ExpirationActionsAbstract::CHANGE_POST_STATUS;
+                    $this->args['newStatus'] = 'draft';
+                }
+
+                if ($this->args['expireType'] === ExpirationActionsAbstract::POST_STATUS_TO_PRIVATE) {
+                    $this->args['expireType'] = ExpirationActionsAbstract::CHANGE_POST_STATUS;
+                    $this->args['newStatus'] = 'private';
+                }
+
+                if ($this->args['expireType'] === ExpirationActionsAbstract::POST_STATUS_TO_TRASH) {
+                    $this->args['expireType'] = ExpirationActionsAbstract::CHANGE_POST_STATUS;
+                    $this->args['newStatus'] = 'trash';
+                }
+            }
         }
     }
 
-    /**
-     * @param int $id
-     * @return bool
-     */
-    public function load($id)
+    public function load(int $id): bool
     {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -100,20 +126,16 @@ class ActionArgsModel
         return is_object($row);
     }
 
-    /**
-     * @param int $actionid
-     * @return bool
-     */
-    public function loadByActionId($actionid)
+    public function loadByActionId(int $actionId): bool
     {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 "SELECT * FROM {$this->tableName} WHERE cron_action_id = %d LIMIT 1",
-                $actionid
+                $actionId
             )
         );
 
@@ -124,24 +146,30 @@ class ActionArgsModel
         return is_object($row);
     }
 
-    /**
-     * Load the enabled action by post ID. We can have only one enabled per post.
-     *
-     * @param int $postId
-     * @return bool
-     */
-    public function loadByPostId($postId)
+    public function loadByPostId(int $postId, bool $filterEnabled = false): bool
     {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
-        $row = $wpdb->get_row(
-            $wpdb->prepare(
-                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                "SELECT * FROM {$this->tableName} WHERE enabled = 1 AND post_id = %d LIMIT 1",
-                $postId
-            )
-        );
+        $row = null;
+        if ($filterEnabled) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                    "SELECT * FROM {$this->tableName} WHERE post_id = %d AND enabled = 1 ORDER BY enabled DESC, id DESC LIMIT 1",
+                    $postId
+                )
+            );
+        } else {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                    "SELECT * FROM {$this->tableName} WHERE post_id = %d ORDER BY enabled DESC, id DESC LIMIT 1",
+                    $postId
+                )
+            );
+        }
 
         if (! empty($row)) {
             $this->setAttributesFromRow($row);
@@ -150,14 +178,14 @@ class ActionArgsModel
         return is_object($row);
     }
 
-    public function save()
+    public function save(): void
     {
         global $wpdb;
 
         // For now we only support one action per post
         $this->disableAllForPost($this->postId);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->update(
             $this->tableName,
             [
@@ -173,13 +201,10 @@ class ActionArgsModel
         );
     }
 
-    /**
-     * @return int
-     */
-    public function add()
+    public function insert(): int
     {
         global $wpdb;
-
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->insert(
             $this->tableName,
             [
@@ -197,9 +222,8 @@ class ActionArgsModel
 
     /**
      * @param int|null $postId
-     * @return void
      */
-    public function disableAllForPost($postId = null)
+    public function disableAllForPost($postId = null): void
     {
         global $wpdb;
 
@@ -207,7 +231,7 @@ class ActionArgsModel
             $postId = $this->postId;
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->update(
             $this->tableName,
             [
@@ -219,11 +243,11 @@ class ActionArgsModel
         );
     }
 
-    public function delete()
+    public function delete(): void
     {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->delete(
             $this->tableName,
             [
@@ -232,10 +256,7 @@ class ActionArgsModel
         );
     }
 
-    /**
-     * @return int
-     */
-    public function getId()
+    public function getId(): int
     {
         return absint($this->id);
     }
@@ -243,73 +264,69 @@ class ActionArgsModel
     /**
      * @return int
      */
-    public function getCronActionId()
+    public function getCronActionId(): int
     {
         return absint($this->cronActionId);
     }
 
-    /**
-     * @param int $cronActionId
-     * @return ActionArgsModel
-     */
-    public function setCronActionId($cronActionId)
+    public function setCronActionId(int $cronActionId): void
     {
         $this->cronActionId = $cronActionId;
-        return $this;
     }
 
-
-    /**
-     * @return int
-     */
-    public function getPostId()
+    public function getPostId(): int
     {
         return (int)$this->postId;
     }
 
-    /**
-     * @param int $postId
-     * @return ActionArgsModel
-     */
-    public function setPostId($postId)
+    public function setPostId(int $postId): void
     {
         $this->postId = $postId;
-        return $this;
     }
 
-    /**
-     * @return array
-     */
-    public function getArgs()
+    public function getArgs(): array
     {
         return (array)$this->args;
     }
 
-    public function getAction()
+    public function getArg(string $key): string
+    {
+        return isset($this->args[$key]) ? $this->args[$key] : '';
+    }
+
+    public function getAction(): string
     {
         return isset($this->args['expireType']) ? $this->args['expireType'] : '';
     }
 
-    /**
-     * @return string
-     */
-    public function getActionLabel()
+    public function getActionLabel(string $postType = ''): string
     {
-        return $this->expirationActionsModel->getLabelForAction($this->getAction());
+        $label = $this->expirationActionsModel->getLabelForAction($this->getAction(), $postType);
+
+        if (empty($label)) {
+            $label = $this->getArg('actionLabel');
+        }
+
+        return $label;
     }
 
-    /**
-     * @return array
-     */
-    public function getTaxonomyTerms()
+    public function getTaxonomyTerms(): array
     {
-        return isset($this->args['category']) ? $this->args['category'] : [];
+        $terms = isset($this->args['category']) ? $this->args['category'] : [];
+
+        if (! is_array($terms)) {
+            $terms = explode(',', $terms);
+        }
+
+        return $terms;
     }
 
-    /**
-     * @return array
-     */
-    public function getTaxonomyTermsNames()
+    public function getTaxonomy(): string
+    {
+        return isset($this->args['categoryTaxonomy']) ? $this->args['categoryTaxonomy'] : '';
+    }
+
+    public function getTaxonomyTermsNames(): array
     {
         $terms = $this->getTaxonomyTerms();
 
@@ -324,85 +341,88 @@ class ActionArgsModel
         return $names;
     }
 
-    /**
-     * @param array $args
-     * @return ActionArgsModel
-     */
-    public function setArgs($args)
+    public function setArgs(array $args): void
     {
         $this->args = $args;
-        return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getCreatedAt()
+    public function setArg(string $key, $value): void
+    {
+        $this->args[$key] = $value;
+    }
+
+    public function getCreatedAt(): string
     {
         return (string)$this->createdAt;
     }
 
-    /**
-     * @param string $createdAt
-     * @return ActionArgsModel
-     */
-    public function setCreatedAt($createdAt)
+    public function setCreatedAt(string $createdAt): void
     {
         $this->createdAt = $createdAt;
-        return $this;
     }
 
     /**
-     * @return string
+     * @deprecated version 3.4.0, use getScheduledDateAsISO8601 or getScheduledDateAsUnixTime
      */
-    public function getScheduledDate()
+    public function getScheduledDate(): string
     {
+        return $this->getScheduledDateAsISO8601();
+    }
+
+    public function getScheduledDateAsISO8601(): string
+    {
+        if (is_numeric($this->scheduledDate)) {
+            $this->scheduledDate = $this->convertUnixTimeDateToISO8601((int)$this->scheduledDate);
+        }
+
         return (string)$this->scheduledDate;
     }
 
-    /**
-     * @param bool $enabled
-     * @return $this
-     */
-    public function setEnabled($enabled)
+    public function setEnabled(bool $enabled): void
     {
         $this->enabled = $enabled;
-        return $this;
     }
 
-    /**
-     * @return bool
-     */
-    public function getEnabled()
+    public function getEnabled(): bool
     {
         return (bool)$this->enabled;
     }
 
-    /**
-     * @return int
-     */
-    public function getScheduledDateAsUnixTime()
+    public function getScheduledDateAsUnixTime(): int
     {
-        return date('U', strtotime($this->getScheduledDate()));
+        return $this->convertISO8601DateToUnixTime($this->getScheduledDateAsISO8601());
     }
 
     /**
-     * @param string $scheduledDate
-     * @return ActionArgsModel
+     * @deprecated version 3.4.0, use setScheduledDateFromISO8601 or setScheduledDateFromUnixTime
      */
-    public function setScheduledDate($scheduledDate)
+    public function setScheduledDate(string $scheduledDate): void
+    {
+        if (is_numeric($scheduledDate)) {
+            $scheduledDate = $this->convertUnixTimeDateToISO8601((int)$scheduledDate);
+        }
+
+        $this->setScheduledDateFromISO8601($scheduledDate);
+    }
+
+    public function setScheduledDateFromISO8601(string $scheduledDate): void
     {
         $this->scheduledDate = $scheduledDate;
-        return $this;
     }
 
-    /**
-     * @param int $scheduledDate
-     * @return ActionArgsModel
-     */
-    public function setScheduledDateFromUnixTime($scheduledDate)
+    public function setScheduledDateFromUnixTime(int $scheduledDate): void
     {
-        $this->scheduledDate = date('Y-m-d H:i:s', $scheduledDate);
-        return $this;
+        $this->scheduledDate = $this->convertUnixTimeDateToISO8601($scheduledDate);
+    }
+
+    public function convertUnixTimeDateToISO8601(int $date): string
+    {
+        // phpcs:ignore WordPress.DateTime.RestrictedFunctions.date_date
+        return date(self::DATE_FORMAT_ISO_8601, $date);
+    }
+
+    public function convertISO8601DateToUnixTime(string $date): int
+    {
+        return (int) strtotime($date);
     }
 }

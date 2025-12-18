@@ -1,10 +1,10 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\InstanceProtection;
-
 
 use PublishPress\Future\Core\Paths;
 use PublishPress\Future\Framework\ModuleInterface;
@@ -13,14 +13,18 @@ use PublishPressInstanceProtection\InstanceChecker;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
-class Module implements ModuleInterface
+final class Module implements ModuleInterface
 {
+    private $pluginSlug;
+
+    private $pluginName;
+
     public function __construct(Paths $paths, $pluginSlug, $pluginName)
     {
         $includeFile = $paths->getVendorDirPath()
-            . '/publishpress/publishpress-instance-protection/include.php';
+            . '/publishpress/instance-protection/include.php';
 
-        if (is_readable($includeFile)) {
+        if (is_file($includeFile) && is_readable($includeFile)) {
             // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable
             require_once $includeFile;
         }
@@ -29,11 +33,8 @@ class Module implements ModuleInterface
             return null;
         }
 
-        $pluginCheckerConfig = new Config();
-        $pluginCheckerConfig->pluginSlug = $pluginSlug;
-        $pluginCheckerConfig->pluginName = $pluginName;
-
-        new InstanceChecker($pluginCheckerConfig);
+        $this->pluginSlug = $pluginSlug;
+        $this->pluginName = $pluginName;
     }
 
     /**
@@ -41,5 +42,10 @@ class Module implements ModuleInterface
      */
     public function initialize()
     {
+        $pluginCheckerConfig = new Config();
+        $pluginCheckerConfig->pluginSlug = $this->pluginSlug;
+        $pluginCheckerConfig->pluginName = $this->pluginName;
+
+        new InstanceChecker($pluginCheckerConfig);
     }
 }

@@ -1,16 +1,21 @@
 <?php
+
 /**
- * Copyright (c) 2023. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Migrations;
 
+use Action_Scheduler\Migration\Scheduler;
 use PublishPress\Future\Core\HookableInterface;
 use PublishPress\Future\Framework\WordPress\Facade\OptionsFacade;
 use PublishPress\Future\Modules\Expirator\Adapters\CronToWooActionSchedulerAdapter;
+use PublishPress\Future\Modules\Expirator\ExpirationScheduler;
 use PublishPress\Future\Modules\Expirator\HooksAbstract as ExpiratorHooks;
 use PublishPress\Future\Modules\Expirator\Interfaces\CronInterface;
 use PublishPress\Future\Modules\Expirator\Interfaces\MigrationInterface;
+use PublishPress\Future\Modules\Expirator\Models\ExpirablePostModel;
+use PublishPress\Future\Modules\Expirator\PostMetaAbstract;
 use PublishPress\Future\Modules\Expirator\Schemas\ActionArgsSchema;
 
 use function tad\WPBrowser\vendorDir;
@@ -19,7 +24,7 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class V30001RestorePostMeta implements MigrationInterface
 {
-    const HOOK = ExpiratorHooks::ACTION_MIGRATE_RESTORE_POST_META;
+    public const HOOK = ExpiratorHooks::ACTION_MIGRATE_RESTORE_POST_META;
 
     /**
      * @var \PublishPress\Future\Modules\Expirator\Interfaces\CronInterface
@@ -110,12 +115,17 @@ class V30001RestorePostMeta implements MigrationInterface
                 continue;
             }
 
-            $postModel->updateMeta('_expiration-date-type', $expirationData['expireType']);
-            $postModel->updateMeta('_expiration-date-status', 'saved');
-            $postModel->updateMeta('_expiration-date-taxonomy', $expirationData['categoryTaxonomy']);
-            $postModel->updateMeta('_expiration-date-categories', $expirationData['category']);
-            $postModel->updateMeta('_expiration-date', $expirationData['date']);
-            $postModel->updateMeta('_expiration-date-options', $postModel->getExpirationOptions());
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TIMESTAMP, $expirationData['date']);
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_STATUS, 'saved');
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TYPE, $expirationData['expireType']);
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TAXONOMY, $expirationData['categoryTaxonomy']);
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_TERMS, $expirationData['category']);
+            $postModel->updateMeta(PostMetaAbstract::EXPIRATION_DATE_OPTIONS, $postModel->getExpirationOptions());
+
+            $postModel->updateMeta(
+                ExpirablePostModel::FLAG_METADATA_HASH,
+                $postModel->calcMetadataHash()
+            );
         }
 
         return $events;
@@ -134,7 +144,7 @@ class V30001RestorePostMeta implements MigrationInterface
     public function formatLogActionColumn($text, $row)
     {
         if ($row['hook'] === self::HOOK) {
-            return __('Restore post meta data after v3.0.1', 'publishpress-future');
+            return __('Restore post meta data after v3.0.1', 'post-expirator');
         }
 
         return $text;

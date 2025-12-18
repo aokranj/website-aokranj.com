@@ -10,7 +10,7 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class StickPost implements ExpirationActionInterface
 {
-    const SERVICE_NAME = 'expiration.actions.stick_post';
+    public const SERVICE_NAME = 'expiration.actions.stick_post';
 
     /**
      * @var ExpirablePostModel
@@ -42,12 +42,14 @@ class StickPost implements ExpirationActionInterface
     {
         if (empty($this->log) || ! $this->log['success']) {
             return sprintf(
+                // translators: %s: post type singular label
                 __('%s didn\'t change.', 'post-expirator'),
                 $this->postModel->getPostTypeSingularLabel()
             );
         }
 
         return sprintf(
+            // translators: %s: post type singular label
             __('%s has been added to stickies list.', 'post-expirator'),
             $this->postModel->getPostTypeSingularLabel()
         );
@@ -68,16 +70,13 @@ class StickPost implements ExpirationActionInterface
     /**
      * @return string
      */
-    public static function getLabel()
+    public static function getLabel(string $postType = ''): string
     {
         return __('Stick', 'post-expirator');
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getDynamicLabel()
+    public function getDynamicLabel($postType = '')
     {
-        return self::getLabel();
+        return self::getLabel($postType);
     }
 }

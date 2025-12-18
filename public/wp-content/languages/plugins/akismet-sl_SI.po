@@ -1,5 +1,5 @@
-# Translation of Plugins - Akismet Anti-Spam: Spam Protection - Stable (latest release) in Slovenian
-# This file is distributed under the same license as the Plugins - Akismet Anti-Spam: Spam Protection - Stable (latest release) package.
+# Translation of Plugins - Akismet Anti-spam: Spam Protection - Stable (latest release) in Slovenian
+# This file is distributed under the same license as the Plugins - Akismet Anti-spam: Spam Protection - Stable (latest release) package.
 msgid ""
 msgstr ""
 "PO-Revision-Date: 2015-08-01 15:59:03+0000\n"
@@ -7,124 +7,90 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=4; plural=(n % 100 == 1) ? 0 : ((n % 100 == 2) ? 1 : ((n % 100 == 3 || n % 100 == 4) ? 2 : 3));\n"
-"X-Generator: GlotPress/4.0.0-alpha.4\n"
+"X-Generator: GlotPress/4.0.3\n"
 "Language: sl_SI\n"
-"Project-Id-Version: Plugins - Akismet Anti-Spam: Spam Protection - Stable (latest release)\n"
+"Project-Id-Version: Plugins - Akismet Anti-spam: Spam Protection - Stable (latest release)\n"
 
 #. translators: The Akismet configuration page URL.
-#: class.akismet-admin.php:936
+#: class.akismet-admin.php:1127
 msgid "Please check your <a href=\"%s\">Akismet configuration</a> and contact your web host if problems persist."
 msgstr "Prosimo, da preverite <a href=\"%s\">konfiguracijo Akismet</a> in se obrnite na spletni strežnik, če težave ne prenehajo."
 
-#: views/notice.php:24
+#: views/notice.php:37
 msgid "Some comments have not yet been checked for spam by Akismet. They have been temporarily held for moderation and will automatically be rechecked later."
 msgstr "Nekatere komentarje še Akismet ni preveril. Ti so bili zadržani za moderacijo in bodo samodejno preverjeni kasneje."
 
-#: views/config.php:225
+#: views/config.php:278
 msgid "Cancelled"
 msgstr "Preklicano"
 
-#: views/config.php:227
+#: views/config.php:280
 msgid "Suspended"
 msgstr "Suspendirano"
 
-#: views/config.php:229
+#: views/config.php:282
 msgid "Missing"
 msgstr "Manjka"
 
-#: views/config.php:231
-msgid "No Subscription Found"
-msgstr "Ni najdenih naročnin"
-
-#: views/config.php:233
+#: views/config.php:286
 msgid "Active"
 msgstr "Aktivni"
 
-#: class.akismet-admin.php:248 views/config.php:145
+#: class.akismet-admin.php:296
 msgid "Strictness"
 msgstr "Strogost"
 
-#: class.akismet-admin.php:248
+#: class.akismet-admin.php:296
 msgid "Choose to either discard the worst spam automatically or to always put all spam in spam folder."
 msgstr "Izberite bodisi zavreči najhujša  neželena sporočila samodejno ali vedno obdržati le te v mapi."
 
-#: views/config.php:149
+#: views/config.php:165
 msgid "Silently discard the worst and most pervasive spam so I never see it."
 msgstr "Tiho zavrži najhujše neželene vsebine preden jih vidim."
 
-#: views/config.php:150
+#: views/config.php:173
 msgid "Always put spam in the Spam folder for review."
 msgstr "Vedno obdrži neželene vsebine v pregled."
 
-#: class.akismet-admin.php:247 views/config.php:122
+#: class.akismet-admin.php:295 views/config.php:131
 msgid "Comments"
 msgstr "Komentarji"
 
-#: views/notice.php:117
+#: views/notice.php:236
 msgid "The key you entered is invalid. Please double-check it."
 msgstr "Vneseni ključ je neveljaven. Preverite vnos."
 
-#: views/notice.php:55
+#: views/notice.php:112
 msgid "Network functions are disabled."
 msgstr "Omrežne funkcije so onemogočene."
 
-#: views/notice.php:23 views/notice.php:31
+#: views/notice.php:36 views/notice.php:46
 msgid "Akismet has detected a problem."
 msgstr "Akismet je zaznal težavo."
-
-#: views/notice.php:36
-msgid "Akismet Error Code: %s"
-msgstr "Akismet Koda napake: %s"
-
-#. translators: the placeholder is a clickable URL that leads to more
-#. information regarding an error code.
-#: views/notice.php:41
-msgid "For more information: %s"
-msgstr "Za več informacij: %s"
-
-#: views/notice.php:76 views/notice.php:86
-msgid "Please contact <a href=\"%s\" target=\"_blank\">Akismet support</a> for assistance."
-msgstr "Obrnite se na <a href=\"%s\" target=\"_blank\">Akismet podporo</a> za pomoč."
-
-#: views/notice.php:81
-msgid "You can help us fight spam and upgrade your account by <a href=\"%s\" target=\"_blank\">contributing a token amount</a>."
-msgstr "Lahko nam pomagate boriti neželene vsebine in nadgradite svoj ​račun tako da <a href=\"%s\" target=\"_blank\">prispevate simbolični znesk</a> ."
 
 #: views/enter.php:2
 msgid "Manually enter an API key"
 msgstr "Ročno vnesi API ključ"
 
-#: views/connect-jp.php:39
+#: views/notice.php:352
 msgid "Contact Akismet support"
 msgstr "Kontaktirajte Akismet podporo"
 
-#: views/config.php:148
-msgid "Akismet anti-spam strictness"
-msgstr "Akismet strogost neželenih vsebin"
-
-#: views/config.php:126
-msgid "Show approved comments"
-msgstr "Prikaži odobrene komentarje"
-
-#: views/config.php:193
-msgid "Save Changes"
-msgstr "Shrani spremembe"
-
-#: class.akismet-admin.php:531
+#: class.akismet-admin.php:628
 msgid "Awaiting spam check"
 msgstr "Čakanje na preverjanje neželene vsebine"
 
-#: class.akismet-widget.php:12
+#: class.akismet-widget.php:20
 msgid "Akismet Widget"
 msgstr "Akismetov gradnik"
 
-#: class.akismet-widget.php:13
+#: class.akismet-widget.php:21
 msgid "Display the number of spam comments Akismet has caught"
 msgstr "Prikaži število neželenih komentarjev, ki jih je prestregel Akismet"
 
 #. translators: The placeholder is the number of pieces of spam blocked by
 #. Akismet.
-#: class.akismet-widget.php:108
+#: class.akismet-widget.php:146
 msgid "<strong class=\"count\">%1$s spam</strong> blocked by <strong>Akismet</strong>"
 msgid_plural "<strong class=\"count\">%1$s spam</strong> blocked by <strong>Akismet</strong>"
 msgstr[0] "<strong class=\"count\">%1$s neželeno vsebino</strong> je blokiral <strong>Akismet</strong>"
@@ -132,16 +98,17 @@ msgstr[1] "<strong class=\"count\">%1$s neželeni vsebini</strong> je blokiral <
 msgstr[2] "<strong class=\"count\">%1$s neželene vsebine</strong> je blokiral <strong>Akismet</strong>"
 msgstr[3] "<strong class=\"count\">%1$s neželenih vsebin</strong> je blokiral <strong>Akismet</strong>"
 
-#: class.akismet-admin.php:107 class.akismet-admin.php:243
-#: class.akismet-admin.php:712 views/config.php:75
+#: class.akismet-admin.php:137 class.akismet-admin.php:291
+#: class.akismet-admin.php:837 views/config.php:83
 msgid "Settings"
 msgstr "Nastavitve"
 
-#: class.akismet-admin.php:277
+#: class.akismet-admin.php:326
 msgid "Cheatin&#8217; uh?"
 msgstr "Goljufamo, a?"
 
-#: class.akismet-admin.php:359
+#. translators: 1: Akismet website URL, 2: Number of spam comments.
+#: class.akismet-admin.php:428
 msgid "<a href=\"%1$s\">Akismet</a> has protected your site from %2$s spam comment already. "
 msgid_plural "<a href=\"%1$s\">Akismet</a> has protected your site from %2$s spam comments already. "
 msgstr[0] "<a href=\"%1$s\">Akismet</a> je zaščitil spletišče pred %2$s neželenim komentarjem. "
@@ -149,24 +116,25 @@ msgstr[1] "<a href=\"%1$s\">Akismet</a> je zaščitil spletišče pred %2$s než
 msgstr[2] "<a href=\"%1$s\">Akismet</a> je zaščitil spletišče pred %2$s neželenimi komentarji. "
 msgstr[3] "<a href=\"%1$s\">Akismet</a> je zaščitil spletišče pred %2$s neželenimi komentarji. "
 
-#: class.akismet-admin.php:535
+#: class.akismet-admin.php:632
 msgid "Flagged as spam by Akismet"
 msgstr "Označeno kot neželena vsebina s strani Akismeta"
 
-#: class.akismet-admin.php:555
+#: class.akismet-admin.php:656
 msgid "History"
 msgstr "Zgodovina"
 
-#: class.akismet-admin.php:347
+#: class.akismet-admin.php:407
 msgctxt "comments"
 msgid "Spam"
 msgstr "Neželena vsebina"
 
-#: class.akismet-admin.php:537
+#: class.akismet-admin.php:634
 msgid "Cleared by Akismet"
 msgstr "Počistil Akismet"
 
-#: class.akismet-admin.php:578
+#. translators: %s: Number of comments.
+#: class.akismet-admin.php:682
 msgid "%s approved"
 msgid_plural "%s approved"
 msgstr[0] "%s odobrenih"
@@ -174,170 +142,170 @@ msgstr[1] "%s odobren"
 msgstr[2] "%s odobrena"
 msgstr[3] "%s odobreni"
 
-#: class.akismet-admin.php:638
+#: class.akismet-admin.php:745
 msgid "Akismet caught this comment as spam during an automatic retry."
 msgstr "Akismet je med samodejnim preverjanjem zaznal, da je ta komentar neželen."
 
 #. translators: The placeholder is a short string (like 'spam' or 'approved')
 #. denoting the new comment status.
-#: class.akismet-admin.php:665
+#: class.akismet-admin.php:790
 msgid "Comment status was changed to %s"
 msgstr "Status komentarja se je spremenil v %s"
 
-#: class.akismet-admin.php:641
+#: class.akismet-admin.php:748
 msgid "Akismet cleared this comment during an automatic retry."
 msgstr "Akismet je med samodejnim preverjanjem počistil ta komentar."
 
-#: class.akismet-admin.php:555 class.akismet-admin.php:563
+#: class.akismet-admin.php:656 class.akismet-admin.php:664
 msgid "View comment history"
 msgstr "Prikaži zgodovino komentarja"
 
-#: class.akismet-admin.php:87 class.akismet-admin.php:1259
+#: class.akismet-admin.php:107 class.akismet-admin.php:1520
 msgid "Akismet"
 msgstr "Akismet"
 
-#: class.akismet-admin.php:541
+#. translators: %s: Username.
+#: class.akismet-admin.php:640
 msgid "Flagged as spam by %s"
 msgstr "%s je to označil kot neželeno vsebino"
 
-#: class.akismet-admin.php:543
+#. translators: %s: Username.
+#: class.akismet-admin.php:643
 msgid "Un-spammed by %s"
 msgstr "%s je to odznačil kot neželeno vsebino"
 
-#: class.akismet-widget.php:69 class.akismet-widget.php:90
+#: class.akismet-widget.php:34 class.akismet-widget.php:69
 msgid "Spam Blocked"
 msgstr "Blokirana neželena vsebina"
 
-#: class.akismet-admin.php:269
+#: class.akismet-admin.php:317
 msgid "For more information:"
 msgstr "Za več informacij:"
 
-#: class.akismet-widget.php:74
+#: class.akismet-widget.php:39
 msgid "Title:"
 msgstr "Naslov:"
 
-#: class.akismet-admin.php:234 class.akismet-admin.php:245
-#: class.akismet-admin.php:258
+#: class.akismet-admin.php:282 class.akismet-admin.php:293
+#: class.akismet-admin.php:306
 msgid "Akismet Configuration"
 msgstr "Akismet Nastavitve"
 
-#: class.akismet-admin.php:221
+#: class.akismet-admin.php:270
 msgid "Akismet Stats"
 msgstr "Akismetova statistika"
 
-#: class.akismet-admin.php:424
+#: class.akismet-admin.php:516
 msgid "Check for Spam"
 msgstr "Poišči neželeno vsebino"
 
 #. translators: The placeholder is an amount of time, like "7 seconds" or "3
 #. days" returned by the function human_time_diff().
-#: class.akismet-admin.php:685
+#: class.akismet-admin.php:810
 msgid "%s ago"
 msgstr "pred %s"
 
-#: class.akismet-admin.php:146
+#: class.akismet-admin.php:195
 msgid "Remove this URL"
 msgstr "Odstrani ta URL"
 
-#: class.akismet-admin.php:147
+#: class.akismet-admin.php:196
 msgid "Removing..."
 msgstr "Odstranjevanje ..."
 
-#: class.akismet-admin.php:148
+#: class.akismet-admin.php:197
 msgid "URL removed"
 msgstr "URL odstranjen"
 
-#: class.akismet-admin.php:149
+#: class.akismet-admin.php:198
 msgid "(undo)"
 msgstr "(razveljavi)"
 
-#: class.akismet-admin.php:150
+#: class.akismet-admin.php:199
 msgid "Re-adding..."
 msgstr "Ponovno dodajanje..."
 
-#: class.akismet-admin.php:181 class.akismet-admin.php:219
-#: class.akismet-admin.php:232
+#: class.akismet-admin.php:230 class.akismet-admin.php:268
+#: class.akismet-admin.php:280
 msgid "Overview"
 msgstr "Pregled"
 
-#: class.akismet-admin.php:183 class.akismet-admin.php:194
-#: class.akismet-admin.php:205
+#: class.akismet-admin.php:232 class.akismet-admin.php:243
+#: class.akismet-admin.php:255
 msgid "Akismet Setup"
 msgstr "Akismet Nastavitve"
 
-#: class.akismet-admin.php:192
+#: class.akismet-admin.php:241
 msgid "New to Akismet"
 msgstr "Novo na Akismet"
 
-#: class.akismet-admin.php:195
+#: class.akismet-admin.php:244
 msgid "You need to enter an API key to activate the Akismet service on your site."
 msgstr "Morate vnesti ključ API, da aktivirate storitev Akismet na vaši strani."
 
-#: class.akismet-admin.php:203
+#: class.akismet-admin.php:253
 msgid "Enter an API Key"
 msgstr "Vnesite ključ API"
 
-#: class.akismet-admin.php:206
+#: class.akismet-admin.php:256
 msgid "If you already have an API key"
 msgstr "Če že imate ključ API"
 
-#: class.akismet-admin.php:208
+#: class.akismet-admin.php:258
 msgid "Copy and paste the API key into the text field."
 msgstr "Kopirajte in prilepite API ključ v polje z besedilom."
 
-#: class.akismet-admin.php:209
+#: class.akismet-admin.php:259
 msgid "Click the Use this Key button."
 msgstr "Kliknite na gumb Uporabi ta ključ."
 
-#: class.akismet-admin.php:223
+#: class.akismet-admin.php:272
 msgid "On this page, you are able to view stats on spam filtered on your site."
 msgstr "Na tej strani si lahko ogledate statistiko neželene vsebine na vaši strani."
 
-#: class.akismet-admin.php:246 views/config.php:86
+#: class.akismet-admin.php:294
 msgid "API Key"
 msgstr "API Ključ"
 
-#: class.akismet-admin.php:246
+#: class.akismet-admin.php:294
 msgid "Enter/remove an API key."
 msgstr "Vnesite/odstranite API ključ"
 
-#: views/config.php:139
-msgid "Show the number of approved comments beside each comment author"
-msgstr "Prikaži število odobrenih komentarjev pred avtorjem vsakega komentarja"
-
-#: class.akismet-admin.php:247
+#: class.akismet-admin.php:295
 msgid "Show the number of approved comments beside each comment author in the comments list page."
 msgstr "Prikaži število odobrenih komentarjev pred avtorjem vsakega komentarja v seznamu komentarjev"
 
-#: class.akismet-admin.php:256 views/config.php:205
+#: class.akismet-admin.php:304 views/config.php:260
 msgid "Account"
 msgstr "Račun"
 
-#: class.akismet-admin.php:259 views/config.php:213
+#: class.akismet-admin.php:307
 msgid "Subscription Type"
 msgstr "Tip naročnine"
 
-#: class.akismet-admin.php:259
+#: class.akismet-admin.php:307
 msgid "The Akismet subscription plan"
 msgstr "Akismet naročnina"
 
-#: class.akismet-admin.php:260 views/config.php:220
+#: class.akismet-admin.php:308 views/config.php:274
 msgid "Status"
 msgstr "Stanje"
 
-#: class.akismet-admin.php:260
+#: class.akismet-admin.php:308
 msgid "The subscription status - active, cancelled or suspended"
 msgstr "Stanje naročnine - aktiven, preklican ali suspendiran"
 
-#: class.akismet-admin.php:270
+#: class.akismet-admin.php:319
 msgid "Akismet FAQ"
 msgstr "Akismet FAQ"
 
-#: class.akismet-admin.php:271
+#: class.akismet-admin.php:320
 msgid "Akismet Support"
 msgstr "Akismet Podpora"
 
-#: class.akismet-admin.php:349
+#. translators: 1: Akismet website URL, 2: Comments page URL, 3: Number of spam
+#. comments.
+#: class.akismet-admin.php:411
 msgid "<a href=\"%1$s\">Akismet</a> has protected your site from <a href=\"%2$s\">%3$s spam comment</a>."
 msgid_plural "<a href=\"%1$s\">Akismet</a> has protected your site from <a href=\"%2$s\">%3$s spam comments</a>."
 msgstr[0] "<a href=\"%1$s\">Akismet</a>je zaščitil vaše spletno mesto pred <a href=\"%2$s\">%3$s neželenim komentarjem</a>."
@@ -345,11 +313,13 @@ msgstr[1] "<a href=\"%1$s\">Akismet</a>je zaščitil vaše spletno mesto pred <a
 msgstr[2] "<a href=\"%1$s\">Akismet</a>je zaščitil vaše spletno mesto pred <a href=\"%2$s\">%3$s neželenimi komentari</a>."
 msgstr[3] "<a href=\"%1$s\">Akismet</a>je zaščitil vaše spletno mesto pred <a href=\"%2$s\">%3$s neželenimi komentarji</a>."
 
-#: class.akismet-admin.php:365
+#. translators: %s: Akismet website URL.
+#: class.akismet-admin.php:439
 msgid "<a href=\"%s\">Akismet</a> blocks spam from getting to your blog. "
 msgstr "<a href=\"%s\">Akismet</a> blokira neželeno vsebino."
 
-#: class.akismet-admin.php:371
+#. translators: 1: Number of comments, 2: Comments page URL.
+#: class.akismet-admin.php:447
 msgid "There&#8217;s <a href=\"%2$s\">%1$s comment</a> in your spam queue right now."
 msgid_plural "There are <a href=\"%2$s\">%1$s comments</a> in your spam queue right now."
 msgstr[0] "Trenutno je <a href=\"%2$s\">%1$s komentar</a> v vrsti neželenih vsebin."
@@ -357,27 +327,25 @@ msgstr[1] "Trenutno sta <a href=\"%2$s\">%1$s komentarja</a> v vrsti neželenih 
 msgstr[2] "Trenutno so <a href=\"%2$s\">%1$s komentarji</a> v vrsti neželenih vsebin."
 msgstr[3] "Trenutno je <a href=\"%2$s\">%1$s komentarjev</a> v vrsti neželenih vsebin."
 
-#: class.akismet-admin.php:377
+#. translators: %s: Comments page URL.
+#: class.akismet-admin.php:458
 msgid "There&#8217;s nothing in your <a href='%s'>spam queue</a> at the moment."
 msgstr "Trenutno je <a href='%s'>vrsta neželenih vsebin</a> prazna."
 
-#: class.akismet-admin.php:1044
+#: class.akismet-admin.php:1255
 msgid "Cleaning up spam takes time."
 msgstr "Za čiščenje je potreben nek čas."
 
-#: class.akismet.php:1539
-msgid "Akismet %s requires WordPress %s or higher."
-msgstr "Akismet %s zahteva WordPress %s ali novejši."
-
-#: class.akismet.php:1539
+#. translators: 1: WordPress documentation URL, 2: Akismet download URL.
+#: class.akismet.php:1918
 msgid "Please <a href=\"%1$s\">upgrade WordPress</a> to a current version, or <a href=\"%2$s\">downgrade to version 2.4 of the Akismet plugin</a>."
 msgstr "Prosimo, <a href=\"%1$s\">nadgradite WordPress</a> na najnovejšo različico ali <a href=\"%2$s\">namestite Akismet 2.4</a>."
 
-#: views/config.php:43
+#: views/config.php:49
 msgid "Past six months"
 msgstr "V zadnjih šestih mesecih"
 
-#: views/config.php:45 views/config.php:50
+#: views/config.php:51 views/config.php:56
 msgid "Spam blocked"
 msgid_plural "Spam blocked"
 msgstr[0] "Blokirana neželena vsebina"
@@ -385,34 +353,30 @@ msgstr[1] ""
 msgstr[2] ""
 msgstr[3] ""
 
-#: views/config.php:48
+#: views/config.php:54
 msgid "All time"
 msgstr "Ves čas"
 
-#: views/config.php:53
+#: views/config.php:59
 msgid "Accuracy"
 msgstr "Natančnost"
 
-#: views/config.php:152
+#: views/config.php:180
 msgid "Note:"
 msgstr "Opomba:"
 
-#: views/config.php:187
+#: views/config.php:241
 msgid "Disconnect this account"
 msgstr "Odklopite ta račun"
 
-#: views/config.php:239
-msgid "Next Billing Date"
-msgstr "Datum naslednjega plačila"
-
-#: views/config.php:250
+#: views/config.php:312
 msgid "Upgrade"
 msgstr "Nadgradi"
 
-#: views/config.php:250
+#: views/config.php:312
 msgid "Change"
 msgstr "Spremeni"
 
-#: class.akismet-admin.php:83
+#: class.akismet-admin.php:103
 msgid "Comment History"
 msgstr "Zgodovina komentarjev"

@@ -1,14 +1,13 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Facade;
 
 use PublishPress\Future\Core\HookableInterface;
-
-use function PublishPress\Future\Framework\WordPress\add_action;
-use function PublishPress\Future\Framework\WordPress\add_filter;
+use Throwable;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
@@ -30,6 +29,19 @@ class HooksFacade implements HookableInterface
     }
 
     /**
+     * Removes a filter.
+     *
+     * @param string $filterName
+     * @param callable $callback
+     * @param integer $priority
+     * @return void
+     */
+    public function removeFilter($filterName, $callback, $priority = 10)
+    {
+        return \remove_filter($filterName, $callback, $priority);
+    }
+
+    /**
      * Apply filters to the passed value.
      *
      * @param string $filterName
@@ -39,12 +51,18 @@ class HooksFacade implements HookableInterface
      */
     public function applyFilters($filterName, $valueToBeFiltered, ...$args)
     {
-        $params = array_merge([
-            $filterName,
-            $valueToBeFiltered
-        ], $args);
+        try {
+            $params = array_merge([
+                $filterName,
+                $valueToBeFiltered
+            ], $args);
 
-        return call_user_func_array('apply_filters', $params);
+            return call_user_func_array('apply_filters', $params);
+        } catch (Throwable $e) {
+            $this->logError($e, sprintf('Error applying filter %s', $filterName));
+
+            return $valueToBeFiltered;
+        }
     }
 
     /**
@@ -63,6 +81,19 @@ class HooksFacade implements HookableInterface
     }
 
     /**
+     * Removes an action.
+     *
+     * @param string $actionName
+     * @param callable $callback
+     * @param integer $priority
+     * @return void
+     */
+    public function removeAction($actionName, $callback, $priority = 10)
+    {
+        return \remove_action($actionName, $callback, $priority);
+    }
+
+    /**
      * Execute the action.
      *
      * @param string $actionName
@@ -72,14 +103,20 @@ class HooksFacade implements HookableInterface
      */
     public function doAction($actionName, ...$args)
     {
-        $params = array_merge([
-            $actionName,
-        ], $args);
+        try {
+            $params = array_merge([
+                $actionName,
+            ], $args);
 
-        return call_user_func_array('do_action', $params);
+            return call_user_func_array('do_action', $params);
+        } catch (Throwable $e) {
+            $this->logError($e, sprintf('Error executing action %s', $actionName));
+
+            return;
+        }
     }
 
-    public function registerActivationHook($pluginFile, $callback)
+    public static function registerActivationHook($pluginFile, $callback)
     {
         \register_activation_hook($pluginFile, $callback);
     }
@@ -88,13 +125,27 @@ class HooksFacade implements HookableInterface
      * @param string $pluginFile
      * @param callable $callback
      */
-    public function registerDeactivationHook($pluginFile, $callback)
+    public static function registerDeactivationHook($pluginFile, $callback)
     {
         \register_deactivation_hook($pluginFile, $callback);
     }
 
     public function ksesRemoveFilters()
     {
-        kses_remove_filters();
+        \kses_remove_filters();
+    }
+
+    protected function logError(Throwable $e, string $message)
+    {
+        $message = sprintf(
+            '%s: %s. File: %s:%d',
+            $message,
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        );
+
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        @error_log($message);
     }
 }

@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Core\DI;
@@ -14,7 +15,7 @@ defined('ABSPATH') or die('Direct access not allowed.');
  * Based on code from https://dev.to/fadymr/php-create-dependency-injection-container-psr-11-like-php-di-or-pimple-128i
  *
  * @copyright 2019 F.R Michel
- * @copyright 2022 PublishPress
+ * @copyright 2024 PublishPress
  */
 class Container implements ContainerInterface
 {
@@ -27,10 +28,12 @@ class Container implements ContainerInterface
      * @var ContainerInterface
      */
     private static $instance;
+
     /**
      * @var array
      */
     private $resolvedEntries = [];
+
     /**
      * @var array
      */
@@ -55,8 +58,6 @@ class Container implements ContainerInterface
 
     /**
      * @return ContainerInterface
-     *
-     * @throws ContainerNotInitializedException
      */
     public static function getInstance()
     {
@@ -74,10 +75,10 @@ class Container implements ContainerInterface
      *
      * @return mixed Entry.
      */
-    public function get($id)
+    public function get(string $id)
     {
         if (! $this->has($id)) {
-            throw new ServiceNotFoundException($id);
+            throw new ServiceNotFoundException(esc_html($id));
         }
 
         if (array_key_exists($id, $this->resolvedEntries)) {
@@ -106,9 +107,9 @@ class Container implements ContainerInterface
      *
      * @return bool
      */
-    public function has($id)
+    public function has(string $id): bool
     {
         return array_key_exists($id, $this->services)
-            || array_key_exists($id, $this->resolvedEntries);
+               || array_key_exists($id, $this->resolvedEntries);
     }
 }

@@ -1,16 +1,29 @@
-.simple-banner {
+.simple-banner,
+.simple-banner_2,
+.simple-banner_3,
+.simple-banner_4,
+.simple-banner_5 {
   width: 100%;
   text-align: center;
   position: relative;
   display: block;
 }
 
-.simple-banner .simple-banner-text {
+.simple-banner .simple-banner-text,
+.simple-banner_2 .simple-banner-text_2,
+.simple-banner_3 .simple-banner-text_3,
+.simple-banner_4 .simple-banner-text_4,
+.simple-banner_5 .simple-banner-text_5 {
   font-weight: 700;
   padding: 10px 20px;
+  position: relative;
 }
 
-.simple-banner .simple-banner-button {
+.simple-banner .simple-banner-button,
+.simple-banner_2 .simple-banner-button_2,
+.simple-banner_3 .simple-banner-button_3,
+.simple-banner_4 .simple-banner-button_4,
+.simple-banner_5 .simple-banner-button_5 {
   border: none;
   background-color: transparent;
   padding: 0 5px;

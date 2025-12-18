@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Framework\WordPress\Exceptions;
@@ -11,5 +12,4 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class NonexistentTermException extends BaseException
 {
-
 }

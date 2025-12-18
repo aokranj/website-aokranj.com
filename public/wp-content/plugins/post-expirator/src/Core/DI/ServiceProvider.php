@@ -1,12 +1,16 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Core\DI;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
+/**
+ * @deprecated 3.1.1
+ */
 class ServiceProvider implements ServiceProviderInterface
 {
     /**

@@ -1,17 +1,23 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\WooCommerce;
 
-
 use PublishPress\Future\Framework\ModuleInterface;
+use PublishPress\Future\Core\HookableInterface;
 
 defined('ABSPATH') or die('Direct access not allowed.');
 
-class Module implements ModuleInterface
+final class Module implements ModuleInterface
 {
+    /**
+     * @var HookableInterface
+     */
+    private $hooks;
+
     /**
      * @var string
      */
@@ -23,8 +29,9 @@ class Module implements ModuleInterface
     private $pluginVersion;
 
 
-    public function __construct($baseUrl, $pluginVersion)
+    public function __construct(HookableInterface $hooks, $baseUrl, $pluginVersion)
     {
+        $this->hooks = $hooks;
         $this->baseUrl = $baseUrl;
         $this->pluginVersion = $pluginVersion;
     }
@@ -34,7 +41,7 @@ class Module implements ModuleInterface
      */
     public function initialize()
     {
-        add_action('admin_enqueue_scripts', [$this, 'enqueueStyle']);
+        $this->hooks->addAction('admin_enqueue_scripts', [$this, 'enqueueStyle']);
     }
 
     public function enqueueStyle()

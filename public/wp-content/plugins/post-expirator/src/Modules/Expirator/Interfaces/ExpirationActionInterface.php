@@ -1,6 +1,7 @@
 <?php
+
 /**
- * Copyright (c) 2022. PublishPress, All rights reserved.
+ * Copyright (c) 2025, Ramble Ventures
  */
 
 namespace PublishPress\Future\Modules\Expirator\Interfaces;
@@ -24,13 +25,10 @@ interface ExpirationActionInterface
      */
     public function __toString();
 
-    /**
-     * @return string
-     */
-    public static function getLabel();
+    public static function getLabel(string $postType = ''): string;
 
     /**
      * @return string
      */
-    public function getDynamicLabel();
+    public function getDynamicLabel($postType = '');
 }

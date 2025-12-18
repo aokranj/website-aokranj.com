@@ -11,7 +11,9 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class PostCategoryRemove implements ExpirationActionInterface
 {
-    const SERVICE_NAME = 'expiration.actions.post_category_remove';
+    use TaxonomyRelatedTrait;
+
+    public const SERVICE_NAME = 'expiration.actions.post_category_remove';
 
     /**
      * @var ExpirablePostModel
@@ -50,6 +52,7 @@ class PostCategoryRemove implements ExpirationActionInterface
     {
         if (empty($this->log)) {
             return sprintf(
+                // translators: %s is the post type singular label
                 __('No terms were removed from the %s.', 'post-expirator'),
                 strtolower($this->postModel->getPostTypeSingularLabel())
             );
@@ -60,8 +63,9 @@ class PostCategoryRemove implements ExpirationActionInterface
         $termsModel = new TermsModel();
 
         return sprintf(
+            // translators: %1$s is the taxonomy name, %2$s is the post type singular label, %3$s is the removed terms list, %4$s is the updated terms list
             __(
-                'The following terms (%s) were removed from the %s: %s. The new list of terms on the post is: %s.',
+                'The following terms (%1$s) were removed from the %2$s: %3$s. The new list of terms on the post is: %4$s.',
                 'post-expirator'
             ),
             $this->log['expiration_taxonomy'],
@@ -102,19 +106,22 @@ class PostCategoryRemove implements ExpirationActionInterface
         return ! $resultIsError;
     }
 
-    /**
-     * @return string
-     */
-    public static function getLabel()
+    public static function getLabel(string $postType = ''): string
     {
-        return __('Remove selected terms', 'post-expirator');
+        // translators: %s is the taxonomy name (plural)
+        $label = __('Remove selected %s', 'post-expirator');
+
+        if (! empty($postType)) {
+            $taxonomy = self::getTaxonomyLabel($postType);
+
+            $label = sprintf($label, $taxonomy);
+        }
+
+        return $label;
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getDynamicLabel()
+    public function getDynamicLabel($postType = '')
     {
-        return self::getLabel();
+        return self::getLabel($postType);
     }
 }
