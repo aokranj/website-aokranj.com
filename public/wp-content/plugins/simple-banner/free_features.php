@@ -21,9 +21,30 @@ $section_style = $banner_id === '' ? '' : 'display:none;';
                     <div class="sb-field-description">Leave blank to hide banner</div>
                 </th>
                 <td>
-                    <textarea id="simple_banner_text<?php echo $banner_id ?>" 
-                              name="simple_banner_text<?php echo $banner_id ?>" 
-                              class="sb-textarea-large large-text code"><?php echo esc_textarea(get_option('simple_banner_text' . $banner_id)); ?></textarea>
+                    <?php if (user_can_richedit()): ?>
+                        <?php 
+                            wp_editor( 
+                                get_option('simple_banner_text' . $banner_id), 
+                                'simple_banner_text' . $banner_id, 
+                                array(
+                                    'wpautop' => false,
+                                    'drag_drop_upload' => true,
+                                    'textarea_name' => 'simple_banner_text' . $banner_id,
+                                    'textarea_rows' => 5,
+                                    'tinymce' => array(
+                                        'forced_root_block' => false,
+                                    ),
+                                )
+                            ); 
+                        ?>
+                    <?php else: ?>
+                        <textarea 
+                            id="simple_banner_text<?php echo $banner_id ?>" 
+                            name="simple_banner_text<?php echo $banner_id ?>" 
+                            class="sb-textarea-large large-text code">
+                              <?php echo esc_textarea(get_option('simple_banner_text' . $banner_id)); ?>
+                        </textarea>
+                    <?php endif; ?>
                 </td>
             </tr>
 

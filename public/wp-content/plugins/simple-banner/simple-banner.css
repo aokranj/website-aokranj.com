@@ -14,7 +14,6 @@
 .simple-banner_3 .simple-banner-text_3,
 .simple-banner_4 .simple-banner-text_4,
 .simple-banner_5 .simple-banner-text_5 {
-  font-weight: 700;
   padding: 10px 20px;
   position: relative;
 }
@@ -27,7 +26,7 @@
   border: none;
   background-color: transparent;
   padding: 0 5px;
-  margin: 0 10px;
+  margin: 0 5px;
   text-align: center;
   text-decoration: none;
   position: absolute;

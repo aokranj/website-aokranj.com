@@ -62,6 +62,11 @@ class OnPostSaveRunner implements TriggerRunnerInterface
      */
     private $executionContext;
 
+    /**
+     * @var string
+     */
+    private $stepSlug;
+
     public function __construct(
         HookableInterface $hooks,
         StepProcessorInterface $stepProcessor,
@@ -88,25 +93,78 @@ class OnPostSaveRunner implements TriggerRunnerInterface
     public function setup(int $workflowId, array $step): void
     {
         $this->step = $step;
+        $this->stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
         $this->workflowId = $workflowId;
 
         $this->hooks->addAction(
             HooksAbstract::ACTION_AFTER_INSERT_POST,
-            [$this, 'triggerCallback'],
+            [$this, 'onAfterInsertPostCallback'],
             20,
             3
         );
+
+        if (function_exists('acf')) {
+            $this->hooks->addAction(
+                HooksAbstract::ACTION_ACF_SAVE_POST,
+                [$this, 'onAcfSavePostCallback'],
+                20,
+                1
+            );
+        } else {
+            foreach ($this->getPostTypes() as $postType) {
+                $this->hooks->addAction(
+                    sprintf(HooksAbstract::ACTION_REST_AFTER_INSERT_POST_TYPE, $postType),
+                    [$this, 'onRestAfterInsertPostCallback'],
+                    20,
+                    3
+                );
+            }
+        }
     }
 
-    public function triggerCallback($postId, $post, $update)
+    public function onAfterInsertPostCallback($postId, $post, $update)
     {
-        $stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
-
-        if ($this->shouldAbortExecution($postId, $stepSlug)) {
+        if (defined('REST_REQUEST') && REST_REQUEST) {
             return;
         }
 
-        $this->executionContext->setVariable($stepSlug, [
+        $this->processSave($post, (int) $postId, (bool) $update);
+    }
+
+    public function onAcfSavePostCallback($postId): void
+    {
+        if (! defined('REST_REQUEST') || ! REST_REQUEST) {
+            return;
+        }
+
+        $post = get_post($postId);
+
+        if (! ($post instanceof \WP_Post)) {
+            return;
+        }
+
+        $update = $post->post_date !== $post->post_modified;
+
+        $this->processSave($post, $post->ID, $update);
+    }
+
+    public function onRestAfterInsertPostCallback(\WP_Post $post, \WP_REST_Request $request, bool $creating): void
+    {
+        $this->processSave($post, $post->ID, ! $creating);
+    }
+
+    private function getPostTypes(): array
+    {
+        return get_post_types();
+    }
+
+    private function processSave(\WP_Post $post, int $postId, bool $update): void
+    {
+        if ($post->post_type === 'revision') {
+            return;
+        }
+
+        $this->executionContext->setVariable($this->stepSlug, [
             'post' => new PostResolver($post, $this->hooks, '', $this->expirablePostModelFactory),
             'postId' => new IntegerResolver($postId),
             'update' => new BooleanResolver($update),
@@ -120,7 +178,25 @@ class OnPostSaveRunner implements TriggerRunnerInterface
         ];
 
         if (! $this->postQueryValidator->validate($postQueryArgs)) {
-            return false;
+            $this->logger->debugWithArgs(
+                'Trigger skipped: Post query conditions not met for step "%s" and post #%d (post_type: %s, post_status: %s).',
+                $this->stepSlug,
+                $postId,
+                $post->post_type ?? 'unknown',
+                $post->post_status ?? 'unknown'
+            );
+
+            return;
+        }
+
+        if ($this->shouldAbortExecution($postId)) {
+            $this->logger->debugWithArgs(
+                'Trigger skipped: Execution should be aborted for step %s and post #%d.',
+                $this->stepSlug,
+                $postId
+            );
+
+            return;
         }
 
         $this->stepProcessor->executeSafelyWithErrorHandling(
@@ -130,7 +206,7 @@ class OnPostSaveRunner implements TriggerRunnerInterface
         );
     }
 
-    private function shouldAbortExecution($postId, $stepSlug): bool
+    private function shouldAbortExecution($postId): bool
     {
         if (
             $this->hooks->applyFilters(
@@ -140,11 +216,10 @@ class OnPostSaveRunner implements TriggerRunnerInterface
                 $this->step
             )
         ) {
-            $this->logger->debug(
-                $this->stepProcessor->prepareLogMessage(
-                    'Ignoring save post event for step %s',
-                    $stepSlug
-                )
+            $this->logger->debugWithArgs(
+                'Ignored save post event detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
             );
 
             return true;
@@ -157,11 +232,10 @@ class OnPostSaveRunner implements TriggerRunnerInterface
                 $postId
             )
         ) {
-            $this->logger->debug(
-                $this->stepProcessor->prepareLogMessage(
-                    'Infinite loop detected for step %s, skipping',
-                    $stepSlug
-                )
+            $this->logger->debugWithArgs(
+                'Infinite loop detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
             );
 
             return true;
@@ -175,11 +249,10 @@ class OnPostSaveRunner implements TriggerRunnerInterface
         ]);
 
         if ($this->executionSafeguard->preventDuplicateExecution($uniqueId)) {
-            $this->logger->debug(
-                $this->stepProcessor->prepareLogMessage(
-                    'Duplicate execution detected for step %s, skipping',
-                    $stepSlug
-                )
+            $this->logger->debugWithArgs(
+                'Duplicate execution detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
             );
 
             return true;
@@ -188,19 +261,11 @@ class OnPostSaveRunner implements TriggerRunnerInterface
         return false;
     }
 
-    public function processTriggerExecution($postId)
+    public function processTriggerExecution($step, $postId)
     {
-        $stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
-
         $this->stepProcessor->triggerCallbackIsRunning();
 
-        $this->logger->debug(
-            $this->stepProcessor->prepareLogMessage(
-                'Trigger is running | Slug: %s | Post ID: %d',
-                $stepSlug,
-                $postId
-            )
-        );
+        $this->logger->debugWithArgs('Trigger executed: %s for post #%d.', $this->stepSlug, $postId);
 
         $this->hooks->doAction(
             HooksAbstract::ACTION_WORKFLOW_TRIGGER_EXECUTED,

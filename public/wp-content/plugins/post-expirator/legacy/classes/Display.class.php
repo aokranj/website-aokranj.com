@@ -274,11 +274,13 @@ class PostExpirator_Display
             }
             if (isset($_POST['debugging-disable'])) {
                 update_option('expirationdateDebug', 0);
+                $this->settingsFacade->purgeCache();
                 echo "<div id='message' class='updated fade'><p>";
                 esc_html_e('Debugging Disabled', 'post-expirator');
                 echo '</p></div>';
             } elseif (isset($_POST['debugging-enable'])) {
                 update_option('expirationdateDebug', 1);
+                $this->settingsFacade->purgeCache();
                 echo "<div id='message' class='updated fade'><p>";
                 esc_html_e('Debugging Enabled', 'post-expirator');
                 echo '</p></div>';
@@ -309,9 +311,9 @@ class PostExpirator_Display
                 );
                 echo '</p></div>';
             } elseif (isset($_POST['fix-db-schema'])) {
-                $this->actionArgsSchema->fixTable();
-                $this->debugLogSchema->fixTable();
-                $this->hooks->doAction(SettingsHooksAbstract::ACTION_FIX_DB_SCHEMA);
+                Container::getInstance()
+                    ->get(ServicesAbstract::DATABASE_SCHEMA_MAINTAINER)
+                    ->repairAllSchemas();
 
                 $schemaIsHealthy = $this->actionArgsSchema->isTableHealthy() && $this->debugLogSchema->isTableHealthy();
                 $schemaIsHealthy = $this->hooks->applyFilters(SettingsHooksAbstract::FILTER_SCHEMA_IS_HEALTHY, $schemaIsHealthy);

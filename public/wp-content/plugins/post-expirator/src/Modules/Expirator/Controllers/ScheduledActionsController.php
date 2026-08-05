@@ -117,8 +117,8 @@ class ScheduledActionsController implements InitializableInterface
     {
         try {
             add_menu_page(
-                __('PublishPress Future', 'post-expirator'),
-                __('Future', 'post-expirator'),
+                'PublishPress Future',
+                'Future',
                 'manage_options',
                 'publishpress-future',
                 [\PostExpirator_Display::getInstance(), 'future_actions_tabs'],
@@ -197,7 +197,8 @@ class ScheduledActionsController implements InitializableInterface
 
     public function filterScreenSettings($screenSettings, $screen)
     {
-        if ($screen->id !== 'future_page_publishpress-future-scheduled-actions') {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Only comparing admin page slug; no form action.
+        if (! isset($_GET['page']) || sanitize_key(wp_unslash($_GET['page'])) !== 'publishpress-future-scheduled-actions') {
             return $screenSettings;
         }
 

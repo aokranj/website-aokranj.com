@@ -2,11 +2,11 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./assets/jsx/components/FutureActionPanelAfterActionField.jsx":
+/***/ "./assets/jsx/components/FutureActionPanelAfterActionField.jsx"
 /*!*********************************************************************!*\
   !*** ./assets/jsx/components/FutureActionPanelAfterActionField.jsx ***!
   \*********************************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
@@ -31,47 +31,47 @@ var FutureActionPanelAfterActionFieldSlot = function FutureActionPanelAfterActio
 FutureActionPanelAfterActionField.Slot = FutureActionPanelAfterActionFieldSlot;
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (FutureActionPanelAfterActionField);
 
-/***/ }),
+/***/ },
 
-/***/ "@publishpress/i18n":
-/*!************************************!*\
-  !*** external "publishpress.i18n" ***!
-  \************************************/
-/***/ ((module) => {
-
-module.exports = publishpress.i18n;
-
-/***/ }),
-
-/***/ "@wordpress/components":
+/***/ "@wordpress/components"
 /*!********************************!*\
   !*** external "wp.components" ***!
   \********************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.components;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/data":
+/***/ "@wordpress/data"
 /*!**************************!*\
   !*** external "wp.data" ***!
   \**************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.data;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/element":
+/***/ "@wordpress/element"
 /*!*****************************!*\
   !*** external "wp.element" ***!
   \*****************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.element;
 
-/***/ })
+/***/ },
+
+/***/ "@wordpress/i18n"
+/*!**************************!*\
+  !*** external "wp.i18n" ***!
+  \**************************/
+(module) {
+
+module.exports = wp.i18n;
+
+/***/ }
 
 /******/ 	});
 /************************************************************************/
@@ -84,6 +84,12 @@ module.exports = wp.element;
 /******/ 		var cachedModule = __webpack_module_cache__[moduleId];
 /******/ 		if (cachedModule !== undefined) {
 /******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Check if module exists (development only)
+/******/ 		if (__webpack_modules__[moduleId] === undefined) {
+/******/ 			var e = new Error("Cannot find module '" + moduleId + "'");
+/******/ 			e.code = 'MODULE_NOT_FOUND';
+/******/ 			throw e;
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
@@ -150,8 +156,8 @@ var __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _wordpress_components__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @wordpress/components */ "@wordpress/components");
 /* harmony import */ var _wordpress_components__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_wordpress_components__WEBPACK_IMPORTED_MODULE_0__);
-/* harmony import */ var _publishpress_i18n__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @publishpress/i18n */ "@publishpress/i18n");
-/* harmony import */ var _publishpress_i18n__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_publishpress_i18n__WEBPACK_IMPORTED_MODULE_1__);
+/* harmony import */ var _wordpress_i18n__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @wordpress/i18n */ "@wordpress/i18n");
+/* harmony import */ var _wordpress_i18n__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_wordpress_i18n__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var _wordpress_data__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @wordpress/data */ "@wordpress/data");
 /* harmony import */ var _wordpress_data__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(_wordpress_data__WEBPACK_IMPORTED_MODULE_2__);
 /* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @wordpress/element */ "@wordpress/element");
@@ -165,6 +171,7 @@ __webpack_require__.r(__webpack_exports__);
 var _futureWorkflows = futureWorkflows,
   apiUrl = _futureWorkflows.apiUrl,
   nonce = _futureWorkflows.nonce,
+  workflowNonce = _futureWorkflows.workflowNonce,
   workflows = _futureWorkflows.workflows;
 var Fields = function Fields(_ref) {
   var storeName = _ref.storeName;
@@ -203,7 +210,8 @@ var Fields = function Fields(_ref) {
         wp.apiFetch({
           url: "".concat(apiUrl, "/post-expiration/").concat(postId),
           headers: {
-            'X-WP-Nonce': nonce
+            'X-WP-Nonce': nonce,
+            'X-PP-Workflow-Nonce': workflowNonce
           }
         }).then(function (data) {
           setExtraDataByName('workflowId', data.extraData.workflowId);
@@ -219,7 +227,7 @@ var Fields = function Fields(_ref) {
   return /*#__PURE__*/React.createElement(React.Fragment, null, workflows.length > 0 && action === 'trigger-workflow' && /*#__PURE__*/React.createElement(_wordpress_components__WEBPACK_IMPORTED_MODULE_0__.PanelRow, {
     className: "future-action-panel-content future-action-full-width"
   }, /*#__PURE__*/React.createElement(_wordpress_components__WEBPACK_IMPORTED_MODULE_0__.SelectControl, {
-    label: (0,_publishpress_i18n__WEBPACK_IMPORTED_MODULE_1__.__)('Workflow to trigger', 'post-expirator'),
+    label: (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_1__.__)('Workflow to trigger', 'post-expirator'),
     value: workflowId,
     options: workflows,
     onChange: handleActionChange,
@@ -230,7 +238,7 @@ var Fields = function Fields(_ref) {
     value: workflowId
   })), workflows.length === 0 && action === 'trigger-workflow' && /*#__PURE__*/React.createElement(_wordpress_components__WEBPACK_IMPORTED_MODULE_0__.PanelRow, {
     className: "future-action-panel-content future-action-full-width"
-  }, /*#__PURE__*/React.createElement("p", null, (0,_publishpress_i18n__WEBPACK_IMPORTED_MODULE_1__.__)('No compatible workflows available.', 'post-expirator'))));
+  }, /*#__PURE__*/React.createElement("p", null, (0,_wordpress_i18n__WEBPACK_IMPORTED_MODULE_1__.__)('No compatible workflows available.', 'post-expirator'))));
 };
 var LegacyActionFields = function LegacyActionFields() {
   return /*#__PURE__*/React.createElement(_components_FutureActionPanelAfterActionField__WEBPACK_IMPORTED_MODULE_4__.FutureActionPanelAfterActionField, null, function (_ref2) {
