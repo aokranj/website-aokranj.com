@@ -23,6 +23,8 @@ use PublishPress\Future\Modules\Expirator\PostMetaAbstract;
 use PublishPress\Future\Modules\Settings\SettingsFacade;
 use PublishPress\Future\Modules\Workflows\Migrations\V40000WorkflowScheduledStepsSchema;
 use PublishPress\Future\Modules\Workflows\Migrations\V040500OnScheduledStepsSchema;
+use PublishPress\Future\Modules\Debug\Migrations\V04905DebugLogRequestId;
+use PublishPress\Future\Modules\Debug\Migrations\V04906DebugLogTimestampMilliseconds;
 use Throwable;
 
 defined('ABSPATH') or die('Direct access not allowed.');
@@ -115,7 +117,7 @@ class Plugin implements InitializableInterface
     {
         \PostExpirator_Reviews::init();
 
-        $this->logger->debug(self::LOG_PREFIX . ' Reviews initialized');
+        $this->logger->debug(self::LOG_PREFIX . ' Reviews module has been initialized successfully.');
     }
 
     private function initializeCli()
@@ -126,25 +128,20 @@ class Plugin implements InitializableInterface
 
         \PostExpirator_Cli::getInstance();
 
-        $this->logger->debug(self::LOG_PREFIX . ' CLI initialized');
+        $this->logger->debug(self::LOG_PREFIX . ' CLI module has been initialized successfully.');
     }
 
     private function initializeHooks()
     {
         $this->hooks->addAction(HooksAbstract::ACTION_INIT, [$this, 'manageUpgrade'], 99);
         $this->hooks->doAction(HooksAbstract::ACTION_INIT_PLUGIN);
-        $this->hooks->addAction(
-            HooksAbstract::ACTION_ADMIN_ENQUEUE_SCRIPTS,
-            [$this, 'initializeI18nForScripts'],
-            5
-        );
     }
 
     private function initializeNotices()
     {
         $this->notices->init();
 
-        $this->logger->debug(self::LOG_PREFIX . ' Notices initialized');
+        $this->logger->debug(self::LOG_PREFIX . ' Notices module has been initialized successfully.');
     }
 
     private function initializeModules()
@@ -152,6 +149,7 @@ class Plugin implements InitializableInterface
         foreach ($this->modules as $module) {
             if (method_exists($module, 'initialize')) {
                 $module->initialize();
+                $this->logger->debug(self::LOG_PREFIX . ' ' . get_class($module) . ' module has been initialized successfully.');
             }
         }
     }
@@ -167,6 +165,9 @@ class Plugin implements InitializableInterface
          * `plugins_loaded` or `init` because this hook will be executed before those actions.
          */
         do_action(HooksAbstract::ACTION_ACTIVATE_PLUGIN);
+
+        // Full DB repair runs on the next request in manageUpgrade() once the container is loaded.
+        update_option('pp_future_pending_db_schema_repair', '1', false);
 
         SettingsFacade::setDefaultSettings();
 
@@ -189,6 +190,8 @@ class Plugin implements InitializableInterface
     {
         try {
             $container = Container::getInstance();
+
+            $this->runPendingDatabaseSchemaRepair($container);
 
             // Check for current version, if not exists, run activation
             $version = get_option('postexpiratorVersion');
@@ -317,6 +320,15 @@ class Plugin implements InitializableInterface
                         V040500OnScheduledStepsSchema::HOOK
                     );
                 }
+
+                if (version_compare($version, '4.10.0', '<')) {
+                    $container->get(ServicesAbstract::HOOKS)->doAction(
+                        V04905DebugLogRequestId::HOOK
+                    );
+                    $container->get(ServicesAbstract::HOOKS)->doAction(
+                        V04906DebugLogTimestampMilliseconds::HOOK
+                    );
+                }
             }
 
             $this->hooks->doAction(HooksAbstract::ACTION_UPGRADE_PLUGIN, $version);
@@ -327,6 +339,28 @@ class Plugin implements InitializableInterface
             }
         } catch (Throwable $th) {
             $this->logger->error('Error managing upgrade: ' . $th->getMessage());
+        }
+    }
+
+    /**
+     * Runs after plugin activation (see install.php) once the container is available.
+     */
+    private function runPendingDatabaseSchemaRepair(Container $container): void
+    {
+        $pending = get_option('pp_future_pending_db_schema_repair');
+        if (empty($pending)) {
+            return;
+        }
+
+        delete_option('pp_future_pending_db_schema_repair');
+
+        try {
+            $container->get(ServicesAbstract::DATABASE_SCHEMA_MAINTAINER)->repairAllSchemas();
+        } catch (Throwable $th) {
+            update_option('pp_future_pending_db_schema_repair', '1', false);
+            $this->logger->error(
+                self::LOG_PREFIX . ' Pending database schema repair failed: ' . $th->getMessage()
+            );
         }
     }
 
@@ -346,42 +380,5 @@ class Plugin implements InitializableInterface
         $baseUrl = $container->get(ServicesAbstract::BASE_URL);
 
         return $baseUrl . 'assets/' . $asset;
-    }
-
-    public function initializeI18nForScripts()
-    {
-        wp_enqueue_script(
-            'publishpress-i18n',
-            self::getScriptUrl('i18n'),
-            [
-                'wp-i18n',
-            ],
-            PUBLISHPRESS_FUTURE_VERSION,
-            true
-        );
-
-        $json = $this->getLocalizedTranslations();
-
-        wp_localize_script(
-            'publishpress-i18n',
-            'publishpressI18nConfig',
-            [
-                'data' => $json,
-            ]
-        );
-    }
-
-    private function getLocalizedTranslations()
-    {
-        $currentLocale = get_locale();
-        $jsonPath = $this->basePath . '/languages/post-expirator-' . $currentLocale . '.json';
-
-        if (! file_exists($jsonPath)) {
-            return [];
-        }
-
-        // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
-        $json = file_get_contents($jsonPath);
-        return json_decode($json, true);
     }
 }

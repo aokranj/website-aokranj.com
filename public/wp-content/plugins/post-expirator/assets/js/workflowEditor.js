@@ -2,11 +2,11 @@
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./assets/jsx/workflow-editor/constants.jsx":
+/***/ "./assets/jsx/workflow-editor/constants.jsx"
 /*!**************************************************!*\
   !*** ./assets/jsx/workflow-editor/constants.jsx ***!
   \**************************************************/
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
@@ -60,139 +60,97 @@ var HANDLE_TYPE_TARGET = 'target';
 var HANDLE_TYPE_SOURCE = 'source';
 var CUSTOM_EVENT_HANDLES_COUNT_CHANGED = 'publishpress_future_workflow_editor_handles_count_changed';
 
-/***/ }),
+/***/ },
 
-/***/ "./node_modules/react-dom/client.js":
-/*!******************************************!*\
-  !*** ./node_modules/react-dom/client.js ***!
-  \******************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-
-var m = __webpack_require__(/*! react-dom */ "react-dom");
-if (false) {} else {
-  var i = m.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-  exports.createRoot = function(c, o) {
-    i.usingClientEntryPoint = true;
-    try {
-      return m.createRoot(c, o);
-    } finally {
-      i.usingClientEntryPoint = false;
-    }
-  };
-  exports.hydrateRoot = function(c, h, o) {
-    i.usingClientEntryPoint = true;
-    try {
-      return m.hydrateRoot(c, h, o);
-    } finally {
-      i.usingClientEntryPoint = false;
-    }
-  };
-}
-
-
-/***/ }),
-
-/***/ "react":
-/*!************************!*\
-  !*** external "React" ***!
-  \************************/
-/***/ ((module) => {
-
-module.exports = React;
-
-/***/ }),
-
-/***/ "react-dom":
-/*!***************************!*\
-  !*** external "ReactDOM" ***!
-  \***************************/
-/***/ ((module) => {
-
-module.exports = ReactDOM;
-
-/***/ }),
-
-/***/ "@publishpress/i18n":
-/*!************************************!*\
-  !*** external "publishpress.i18n" ***!
-  \************************************/
-/***/ ((module) => {
-
-module.exports = publishpress.i18n;
-
-/***/ }),
-
-/***/ "@wordpress/components":
+/***/ "@wordpress/components"
 /*!********************************!*\
   !*** external "wp.components" ***!
   \********************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.components;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/data":
+/***/ "@wordpress/data"
 /*!**************************!*\
   !*** external "wp.data" ***!
   \**************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.data;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/element":
+/***/ "@wordpress/element"
 /*!*****************************!*\
   !*** external "wp.element" ***!
   \*****************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.element;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/hooks":
+/***/ "@wordpress/hooks"
 /*!***************************!*\
   !*** external "wp.hooks" ***!
   \***************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.hooks;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/i18n":
+/***/ "@wordpress/i18n"
 /*!**************************!*\
   !*** external "wp.i18n" ***!
   \**************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.i18n;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/plugins":
+/***/ "@wordpress/plugins"
 /*!*****************************!*\
   !*** external "wp.plugins" ***!
   \*****************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.plugins;
 
-/***/ }),
+/***/ },
 
-/***/ "@wordpress/url":
+/***/ "@wordpress/url"
 /*!*************************!*\
   !*** external "wp.url" ***!
   \*************************/
-/***/ ((module) => {
+(module) {
 
 module.exports = wp.url;
 
-/***/ })
+/***/ },
+
+/***/ "react"
+/*!************************!*\
+  !*** external "React" ***!
+  \************************/
+(module) {
+
+module.exports = React;
+
+/***/ },
+
+/***/ "react-dom"
+/*!***************************!*\
+  !*** external "ReactDOM" ***!
+  \***************************/
+(module) {
+
+module.exports = ReactDOM;
+
+/***/ }
 
 /******/ 	});
 /************************************************************************/
@@ -205,6 +163,12 @@ module.exports = wp.url;
 /******/ 		var cachedModule = __webpack_module_cache__[moduleId];
 /******/ 		if (cachedModule !== undefined) {
 /******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Check if module exists (development only)
+/******/ 		if (__webpack_modules__[moduleId] === undefined) {
+/******/ 			var e = new Error("Cannot find module '" + moduleId + "'");
+/******/ 			e.code = 'MODULE_NOT_FOUND';
+/******/ 			throw e;
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
@@ -267,7 +231,7 @@ module.exports = wp.url;
 /******/ 			__webpack_require__.r(ns);
 /******/ 			var def = {};
 /******/ 			leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
-/******/ 			for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 			for(var current = mode & 2 && value; (typeof current == 'object' || typeof current == 'function') && !~leafPrototypes.indexOf(current); current = getProto(current)) {
 /******/ 				Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
 /******/ 			}
 /******/ 			def['default'] = () => (value);
@@ -347,7 +311,6 @@ module.exports = wp.url;
 /******/ 				script = document.createElement('script');
 /******/ 		
 /******/ 				script.charset = 'utf-8';
-/******/ 				script.timeout = 120;
 /******/ 				if (__webpack_require__.nc) {
 /******/ 					script.setAttribute("nonce", __webpack_require__.nc);
 /******/ 				}
@@ -412,7 +375,7 @@ module.exports = wp.url;
 /******/ 		// When supporting browsers where an automatic publicPath is not supported you must specify an output.publicPath manually via configuration
 /******/ 		// or pass an empty string ("") and set the __webpack_public_path__ variable from your code to use your own logic.
 /******/ 		if (!scriptUrl) throw new Error("Automatic publicPath is not supported in this browser");
-/******/ 		scriptUrl = scriptUrl.replace(/#.*$/, "").replace(/\?.*$/, "").replace(/\/[^\/]+$/, "/");
+/******/ 		scriptUrl = scriptUrl.replace(/^blob:/, "").replace(/#.*$/, "").replace(/\?.*$/, "").replace(/\/[^\/]+$/, "/");
 /******/ 		__webpack_require__.p = scriptUrl;
 /******/ 	})();
 /******/ 	
@@ -520,7 +483,8 @@ var __webpack_exports__ = {};
   \**********************************************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _constants__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./constants */ "./assets/jsx/workflow-editor/constants.jsx");
-/* harmony import */ var react_dom_client__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! react-dom/client */ "./node_modules/react-dom/client.js");
+/* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @wordpress/element */ "@wordpress/element");
+/* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(_wordpress_element__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! react */ "react");
 /* harmony import */ var react__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(react__WEBPACK_IMPORTED_MODULE_2__);
 
@@ -531,7 +495,7 @@ var WorkflowEditorApp = /*#__PURE__*/(0,react__WEBPACK_IMPORTED_MODULE_2__.lazy)
   return Promise.all(/*! import() */[__webpack_require__.e("vendors-node_modules_wordpress_a11y_build-module_index_js-node_modules_wordpress_compose_buil-22cb4f"), __webpack_require__.e("assets_jsx_workflow-editor_components_app_jsx")]).then(__webpack_require__.bind(__webpack_require__, /*! ./components/app */ "./assets/jsx/workflow-editor/components/app.jsx"));
 });
 if (container) {
-  (0,react_dom_client__WEBPACK_IMPORTED_MODULE_1__.createRoot)(container).render( /*#__PURE__*/React.createElement(react__WEBPACK_IMPORTED_MODULE_2__.Suspense, {
+  (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_1__.createRoot)(container).render( /*#__PURE__*/React.createElement(react__WEBPACK_IMPORTED_MODULE_2__.Suspense, {
     fallback: /*#__PURE__*/React.createElement("div", {
       className: "workflow-editor-loading"
     }, "Loading...")

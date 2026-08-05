@@ -6,6 +6,7 @@
 
 namespace PublishPress\Future\Framework\Logger;
 
+use PublishPress\Future\Framework\Database\DBTableSchemaHandler;
 use PublishPress\Future\Framework\Logger\LogLevelAbstract as LogLevel;
 use PublishPress\Future\Framework\WordPress\Facade\DatabaseFacade;
 use PublishPress\Future\Framework\WordPress\Facade\SiteFacade;
@@ -15,6 +16,13 @@ defined('ABSPATH') or die('Direct access not allowed.');
 
 class Logger implements LoggerInterface
 {
+    /**
+     * Tables for which ensureDebugTableExists() has already run this request.
+     *
+     * @var array<string, true>
+     */
+    private static $debugTableEnsured = [];
+
     /**
      * @var string
      */
@@ -50,22 +58,56 @@ class Logger implements LoggerInterface
 
         // FIXME: Rename the table to something like ppfuture_debug_log and use a schema class.
         $this->dbTableName = $this->db->getTablePrefix() . 'postexpirator_debug';
-
-        $this->initialize();
     }
 
-    private function initialize()
+    /**
+     * Clears lazy debug-table ensure state (test isolation; optional tooling).
+     *
+     * @return void
+     *
+     * @since 4.10.1
+     */
+    public static function resetDebugTableEnsureCacheForTesting(): void
     {
-        if ($this->databaseTableDoNotExists()) {
+        self::$debugTableEnsured = [];
+    }
+
+    /**
+     * Ensures the debug log table exists before the first DB access in this request.
+     *
+     * @return void
+     *
+     * @since 4.10.1
+     */
+    private function ensureDebugTableExists(): void
+    {
+        if (isset(self::$debugTableEnsured[$this->dbTableName])) {
+            return;
+        }
+
+        if (! $this->debugDatabaseTableExists()) {
             $this->createDatabaseTable();
         }
+
+        self::$debugTableEnsured[$this->dbTableName] = true;
     }
 
-    private function databaseTableDoNotExists()
+    /**
+     * @return bool
+     *
+     * @since 4.10.1
+     */
+    private function debugDatabaseTableExists(): bool
     {
-        $databaseTableName = $this->getDatabaseTableName();
+        $query = $this->db->prepare(
+            'SELECT 1 FROM information_schema.tables WHERE table_schema = %s AND table_name = %s LIMIT 1',
+            DB_NAME,
+            $this->dbTableName
+        );
 
-        return $this->db->getVar("SHOW TABLES LIKE '$databaseTableName'") !== $this->dbTableName;
+        $row = $this->db->getVar($query);
+
+        return $row !== null && $row !== '';
     }
 
     private function getDatabaseTableName()
@@ -79,8 +121,10 @@ class Logger implements LoggerInterface
 
         $tableStructure = "CREATE TABLE `$databaseTableName` (
             `id` INT(9) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            `timestamp` TIMESTAMP NOT NULL,
+            `timestamp` DATETIME(3) NOT NULL,
             `blog` INT(9) NOT NULL,
+            `request_id` varchar(32) DEFAULT '',
+            `trigger_activated` tinyint(1) NOT NULL DEFAULT 0,
             `message` text NOT NULL
         );";
 
@@ -89,6 +133,8 @@ class Logger implements LoggerInterface
 
     public function deleteLogs()
     {
+        $this->ensureDebugTableExists();
+
         $databaseTableName = $this->getDatabaseTableName();
 
         $this->db->query("TRUNCATE TABLE $databaseTableName");
@@ -109,7 +155,7 @@ class Logger implements LoggerInterface
     public function isDownloadLogRequested()
     {
         // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-        return is_admin() && isset($_GET['action']) && $_GET['action'] === 'publishpress_future_debug_log';
+        return \is_admin() && isset($_GET['action']) && $_GET['action'] === 'publishpress_future_debug_log';
     }
 
     /**
@@ -123,7 +169,7 @@ class Logger implements LoggerInterface
      */
     public function log($level, $message, $context = [])
     {
-        if (! $this->debugIsEnabled()) {
+        if (! $this->isDebugEnabled()) {
             return;
         }
 
@@ -132,27 +178,30 @@ class Logger implements LoggerInterface
             return;
         }
 
+        $this->ensureDebugTableExists();
+
         $levelDescription = strtoupper($level);
 
         $databaseTableName = $this->getDatabaseTableName();
 
-        $fullMessage = sprintf(
-            '%s %s: %s',
-            $levelDescription,
-            $this->requestId,
-            $message
-        );
+        $fullMessage = sprintf('%s: %s', $levelDescription, $message);
 
         if (! empty($context)) {
             $fullMessage .= '[' . implode(', ', $context) . ']';
         }
 
+        $microtime = microtime(true);
+        $timestampWithMs = gmdate('Y-m-d H:i:s', (int) $microtime)
+            . '.'
+            . sprintf('%03d', (int) (($microtime - floor($microtime)) * 1000));
+
         $this->db->query(
             $this->db->prepare(
-                "INSERT INTO $databaseTableName (`timestamp`,`message`,`blog`) VALUES (FROM_UNIXTIME(%d),%s,%s)",
-                time(),
-                $fullMessage,
-                $this->site->getBlogId()
+                "INSERT INTO $databaseTableName (`timestamp`,`blog`,`request_id`,`trigger_activated`,`message`) VALUES (%s,%s,%s,0,%s)",
+                $timestampWithMs,
+                $this->site->getBlogId(),
+                $this->requestId,
+                $fullMessage
             )
         );
     }
@@ -160,7 +209,7 @@ class Logger implements LoggerInterface
     /**
      * @return bool
      */
-    private function debugIsEnabled()
+    public function isDebugEnabled()
     {
         return $this->settings->getDebugIsEnabled();
     }
@@ -266,46 +315,188 @@ class Logger implements LoggerInterface
     }
 
     /**
-     * @return array
-     * @noinspection SqlResolve
+     * Log a debug message using sprintf-style formatting.
+     *
+     * @param string $message Message format string.
+     * @param mixed  ...$args Arguments for sprintf.
+     * @return void
+     * @since 4.10.0
      */
-    public function fetchAll()
+    public function debugWithArgs(string $message, ...$args): void
     {
+        if (! $this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->debug(sprintf($message, ...$args));
+    }
+
+    /**
+     * Log an error message using sprintf-style formatting.
+     *
+     * @param string $message Message format string.
+     * @param mixed  ...$args Arguments for sprintf.
+     * @return void
+     * @since 4.10.0
+     */
+    public function errorWithArgs(string $message, ...$args): void
+    {
+        $this->error(sprintf($message, ...$args));
+    }
+
+    /**
+     * Log a warning message using sprintf-style formatting.
+     *
+     * @param string $message Message format string.
+     * @param mixed  ...$args Arguments for sprintf.
+     * @return void
+     * @since 4.10.0
+     */
+    public function warningWithArgs(string $message, ...$args): void
+    {
+        if (! $this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->warning(sprintf($message, ...$args));
+    }
+
+    /**
+     * Log an info message using sprintf-style formatting.
+     *
+     * @param string $message Message format string.
+     * @param mixed  ...$args Arguments for sprintf.
+     * @return void
+     * @since 4.10.0
+     */
+    public function infoWithArgs(string $message, ...$args): void
+    {
+        if (! $this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->info(sprintf($message, ...$args));
+    }
+
+    /**
+     * Log a notice message using sprintf-style formatting.
+     *
+     * @param string $message Message format string.
+     * @param mixed  ...$args Arguments for sprintf.
+     * @return void
+     * @since 4.10.0
+     */
+    public function noticeWithArgs(string $message, ...$args): void
+    {
+        if (! $this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->notice(sprintf($message, ...$args));
+    }
+
+    /**
+     * Mark the current request as having a workflow trigger activated.
+     *
+     * @since 4.10.0
+     * @return void
+     */
+    public function markCurrentRequestHasTriggerActivated(): void
+    {
+        if (! $this->isDebugEnabled()) {
+            return;
+        }
+
+        $this->ensureDebugTableExists();
+
         $databaseTableName = $this->getDatabaseTableName();
 
-        return (array)$this->db->getResults("SELECT * FROM $databaseTableName ORDER BY `id`", 'ARRAY_A');
+        $this->db->query(
+            $this->db->prepare(
+                "UPDATE $databaseTableName SET `trigger_activated` = 1 WHERE `request_id` = %s",
+                $this->requestId
+            )
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     * @noinspection SqlResolve
+     */
+    public function fetchAll($triggerActivatedOnly = false)
+    {
+        $this->ensureDebugTableExists();
+
+        $databaseTableName = $this->getDatabaseTableName();
+        $where = '';
+
+        if ($triggerActivatedOnly) {
+            $where = " WHERE `request_id` IN (SELECT DISTINCT `request_id` FROM $databaseTableName WHERE `trigger_activated` = 1 AND `request_id` != '')";
+        }
+
+        return (array)$this->db->getResults("SELECT * FROM $databaseTableName{$where} ORDER BY `id`", 'ARRAY_A');
     }
 
     /**
      * @inheritDoc
+     * @param int $limit
+     * @param bool $triggerActivatedOnly
+     * @return array<string, mixed>
      */
-    public function fetchLatest($limit = 100)
+    public function fetchLatest($limit = 100, $triggerActivatedOnly = false)
     {
-        $databaseTableName = $this->getDatabaseTableName();
+        $this->ensureDebugTableExists();
 
-        $list = (array)$this->db->getResults("SELECT * FROM $databaseTableName ORDER BY `id` DESC LIMIT $limit", 'ARRAY_A');
+        $databaseTableName = $this->getDatabaseTableName();
+        $limit = \absint($limit);
+        $where = '';
+
+        if ($triggerActivatedOnly) {
+            $where = " WHERE `request_id` IN (SELECT DISTINCT `request_id` FROM $databaseTableName WHERE `trigger_activated` = 1 AND `request_id` != '')";
+        }
+
+        $list = (array)$this->db->getResults(
+            "SELECT * FROM $databaseTableName{$where} ORDER BY `id` DESC LIMIT $limit",
+            'ARRAY_A'
+        );
 
         return array_reverse($list);
     }
 
     /**
      * @inheritDoc
+     * @param bool $triggerActivatedOnly Filter to count only logs from requests with trigger activated.
      */
-    public function getTotalLogs()
+    public function getTotalLogs($triggerActivatedOnly = false)
     {
-        $databaseTableName = $this->getDatabaseTableName();
+        $this->ensureDebugTableExists();
 
-        return (int)$this->db->getVar("SELECT COUNT(*) FROM $databaseTableName");
+        $databaseTableName = $this->getDatabaseTableName();
+        $where = '';
+
+        if ($triggerActivatedOnly) {
+            $where = " WHERE `request_id` IN (SELECT DISTINCT `request_id` FROM $databaseTableName WHERE `trigger_activated` = 1 AND `request_id` != '')";
+        }
+
+        return (int)$this->db->getVar("SELECT COUNT(*) FROM $databaseTableName{$where}");
     }
 
     /**
      * @inheritDoc
+     * @param bool $triggerActivatedOnly Filter to sum only logs from requests with trigger activated.
      */
-    public function getLogSizeInBytes()
+    public function getLogSizeInBytes($triggerActivatedOnly = false)
     {
-        $databaseTableName = $this->getDatabaseTableName();
+        $this->ensureDebugTableExists();
 
-        return $this->db->getVar("SELECT SUM(LENGTH(`message`)) FROM $databaseTableName");
+        $databaseTableName = $this->getDatabaseTableName();
+        $where = '';
+
+        if ($triggerActivatedOnly) {
+            $where = " WHERE `request_id` IN (SELECT DISTINCT `request_id` FROM $databaseTableName WHERE `trigger_activated` = 1 AND `request_id` != '')";
+        }
+
+        return (int) $this->db->getVar("SELECT COALESCE(SUM(LENGTH(`message`)), 0) FROM $databaseTableName{$where}");
     }
 
     /**
@@ -316,5 +507,8 @@ class Logger implements LoggerInterface
         $databaseTableName = $this->getDatabaseTableName();
 
         $this->db->dropTable($databaseTableName);
+
+        unset(self::$debugTableEnsured[$this->dbTableName]);
+        DBTableSchemaHandler::clearTableExistenceCache();
     }
 }

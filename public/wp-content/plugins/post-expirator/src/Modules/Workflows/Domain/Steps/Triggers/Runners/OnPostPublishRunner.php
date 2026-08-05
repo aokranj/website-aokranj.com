@@ -18,6 +18,20 @@ use PublishPress\Future\Modules\Workflows\Interfaces\WorkflowExecutionSafeguardI
 class OnPostPublishRunner implements TriggerRunnerInterface
 {
     /**
+     * Transient expiration time in seconds.
+     *
+     * @var int
+     */
+    private const TRANSIENT_EXPIRATION = 60;
+
+    /**
+     * Transient key for post published. Format: pp_future_post_published_{post_id}_{workflow_id}.
+     *
+     * @var string
+     */
+    private const POST_PUBLISHED_TRANSIENT_KEY = 'pp_future_post_published_%d_%d';
+
+    /**
      * @var HookableInterface
      */
     private $hooks;
@@ -67,6 +81,11 @@ class OnPostPublishRunner implements TriggerRunnerInterface
      */
     private $executionSafeguard;
 
+    /**
+     * @var string
+     */
+    private $stepSlug;
+
 
     public function __construct(
         HookableInterface $hooks,
@@ -96,19 +115,173 @@ class OnPostPublishRunner implements TriggerRunnerInterface
     public function setup(int $workflowId, array $step): void
     {
         $this->step = $step;
+        $this->stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
         $this->workflowId = $workflowId;
 
         $this->postCache->setup();
 
-        /*
-         * We need to use the save_post action because the post_updated action is triggered too early
-         * and some post data (like Future Action data or post metadata) would not be available yet.
-         * This is also fired by `wp_publish_post` function.
-         */
-        $this->hooks->addAction(HooksAbstract::ACTION_SAVE_POST, [$this, 'triggerCallback'], 15, 3);
+        $this->hooks->addAction(HooksAbstract::ACTION_TRANSITION_POST_STATUS, [$this, 'onTransitionPostStatus'], 15, 3);
+
+        $this->hooks->addAction(
+            HooksAbstract::ACTION_AFTER_INSERT_POST,
+            [$this, 'onAfterInsertPostCallback'],
+            20,
+            3
+        );
+
+        if (function_exists('acf')) {
+            $this->hooks->addAction(
+                HooksAbstract::ACTION_ACF_SAVE_POST,
+                [$this, 'onAcfSavePostCallback'],
+                20,
+                1
+            );
+        } else {
+            foreach ($this->getPostTypes() as $postType) {
+                $this->hooks->addAction(
+                    sprintf(HooksAbstract::ACTION_REST_AFTER_INSERT_POST_TYPE, $postType),
+                    [$this, 'onRestAfterInsertPostCallback'],
+                    20,
+                    3
+                );
+            }
+        }
     }
 
-    public function triggerCallback($postId, $post, $update)
+    /**
+     * Fires when the post status is transitioned. If the post is being published,
+     * we set a transient to signal that for the next trigger callback.
+     *
+     * @param string $newStatus
+     * @param string $oldStatus
+     * @param \WP_Post $post
+     * @return void
+     */
+    public function onTransitionPostStatus($newStatus, $oldStatus, $post)
+    {
+        if ($newStatus !== 'publish' || $oldStatus === 'publish') {
+            $this->logger->debugWithArgs(
+                'Trigger skipped: Post #%d was not published or is not being published.',
+                $post->ID
+            );
+
+            return;
+        }
+
+        $this->enableFlag(self::POST_PUBLISHED_TRANSIENT_KEY, $post->ID);
+    }
+
+    public function onAfterInsertPostCallback($postId, $post, $update)
+    {
+        if (defined('REST_REQUEST') && REST_REQUEST) {
+            return;
+        }
+
+        if ($post->post_type === 'revision') {
+            return;
+        }
+
+        $this->processPublish((int) $postId);
+    }
+
+    public function onAcfSavePostCallback($postId): void
+    {
+        if (! defined('REST_REQUEST') || ! REST_REQUEST) {
+            return;
+        }
+
+        $post = get_post($postId);
+
+        if (! ($post instanceof \WP_Post)) {
+            return;
+        }
+
+        $this->processPublish((int) $postId);
+    }
+
+    public function onRestAfterInsertPostCallback(\WP_Post $post, \WP_REST_Request $request, bool $creating): void
+    {
+        $this->processPublish($post->ID);
+    }
+
+    private function getPostTypes(): array
+    {
+        return get_post_types();
+    }
+
+    private function processPublish(int $postId): void
+    {
+        if (! $this->hasFlag(self::POST_PUBLISHED_TRANSIENT_KEY, $postId)) {
+            $this->logger->debugWithArgs(
+                'Trigger skipped because post #%d was not published. The flag is not set.',
+                $postId
+            );
+
+            return;
+        }
+
+        $this->disableFlag(self::POST_PUBLISHED_TRANSIENT_KEY, $postId);
+
+        $postCache = $this->getPostCacheForPostId($postId);
+        $postBefore = $postCache['postBefore'] ?? null;
+        $postAfter = $postCache['postAfter'] ?? null;
+
+        $stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
+
+        $this->executionContext->setVariable($stepSlug, [
+            'postBefore' => new PostResolver(
+                $postBefore,
+                $this->hooks,
+                $postCache['permalinkBefore'] ?? '',
+                $this->expirablePostModelFactory
+            ),
+            'postAfter' => new PostResolver(
+                $postAfter,
+                $this->hooks,
+                $postCache['permalinkAfter'] ?? '',
+                $this->expirablePostModelFactory
+            ),
+            'postId' => new IntegerResolver($postId),
+        ]);
+
+        $this->executionContext->setVariable('global.trigger.postId', $postId);
+
+        $postQueryArgs = [
+            'post' => $postAfter,
+            'node' => $this->stepProcessor->getNodeFromStep($this->step),
+        ];
+
+        if (! $this->postQueryValidator->validate($postQueryArgs)) {
+            $this->logger->debugWithArgs(
+                'Trigger skipped: Post query conditions not met for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
+            );
+
+            return;
+        }
+
+        if ($this->shouldAbortExecution($postId)) {
+            $this->logger->debugWithArgs(
+                'Trigger skipped: Execution should be aborted for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
+            );
+
+            return;
+        }
+
+        $this->stepProcessor->executeSafelyWithErrorHandling(
+            $this->step,
+            [$this, 'processTriggerExecution'],
+            $postId
+        );
+    }
+
+    /**
+     * @param int $postId
+     */
+    private function shouldAbortExecution($postId): bool
     {
         if (
             $this->hooks->applyFilters(
@@ -118,42 +291,26 @@ class OnPostPublishRunner implements TriggerRunnerInterface
                 $this->step
             )
         ) {
-            return;
+            $this->logger->debugWithArgs(
+                'Ignored save post event detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
+            );
+
+            return true;
         }
-
-        $postCache = $this->postCache->getCacheForPostId($postId);
-
-        if (! $postCache) {
-            return;
-        }
-
-        if ($postCache['postAfter']->post_status !== 'publish') {
-            return;
-        }
-
-        // Do not continue since we are not transitioning to published.
-        if (
-            $update
-            && ! empty($postCache['postBefore']->ID)
-            && $postCache['postBefore']->post_status === $postCache['postAfter']->post_status
-        ) {
-            return;
-        }
-
-        $stepSlug = $this->stepProcessor->getSlugFromStep($this->step);
 
         if (
             $this->executionSafeguard->detectInfiniteLoop(
                 $this->executionContext,
                 $this->step,
-                $postId,
+                $postId
             )
         ) {
-            $this->logger->debug(
-                $this->stepProcessor->prepareLogMessage(
-                    'Infinite loop detected for step %s, skipping',
-                    $stepSlug
-                )
+            $this->logger->debugWithArgs(
+                'Infinite loop detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
             );
 
             return true;
@@ -167,48 +324,16 @@ class OnPostPublishRunner implements TriggerRunnerInterface
         ]);
 
         if ($this->executionSafeguard->preventDuplicateExecution($uniqueId)) {
-            $this->logger->debug(
-                $this->stepProcessor->prepareLogMessage(
-                    'Duplicate execution detected for step %s, skipping',
-                    $stepSlug
-                )
+            $this->logger->debugWithArgs(
+                'Duplicate execution detected for step "%s" and post #%d.',
+                $this->stepSlug,
+                $postId
             );
 
             return true;
         }
 
-        $this->executionContext->setVariable($stepSlug, [
-            'postBefore' => new PostResolver(
-                $postCache['postBefore'],
-                $this->hooks,
-                $postCache['permalinkBefore'] ?? '',
-                $this->expirablePostModelFactory
-            ),
-            'postAfter' => new PostResolver(
-                $postCache['postAfter'],
-                $this->hooks,
-                $postCache['permalinkAfter'] ?? '',
-                $this->expirablePostModelFactory
-            ),
-            'postId' => new IntegerResolver($postId),
-        ]);
-
-        $this->executionContext->setVariable('global.trigger.postId', $postId);
-
-        $postQueryArgs = [
-            'post' => $postCache['postAfter'],
-            'node' => $this->stepProcessor->getNodeFromStep($this->step),
-        ];
-
-        if (! $this->postQueryValidator->validate($postQueryArgs)) {
-            return false;
-        }
-
-        $this->stepProcessor->executeSafelyWithErrorHandling(
-            $this->step,
-            [$this, 'processTriggerExecution'],
-            $postId
-        );
+        return false;
     }
 
     public function processTriggerExecution($postId)
@@ -217,13 +342,7 @@ class OnPostPublishRunner implements TriggerRunnerInterface
 
         $this->stepProcessor->triggerCallbackIsRunning();
 
-        $this->logger->debug(
-            $this->stepProcessor->prepareLogMessage(
-                'Trigger is running | Slug: %s | Post ID: %d',
-                $stepSlug,
-                $postId
-            )
-        );
+        $this->logger->debugWithArgs('Trigger fired (%s, Post #%d)', $stepSlug, $postId);
 
         $this->hooks->doAction(
             HooksAbstract::ACTION_WORKFLOW_TRIGGER_EXECUTED,
@@ -232,5 +351,39 @@ class OnPostPublishRunner implements TriggerRunnerInterface
         );
 
         $this->stepProcessor->runNextSteps($this->step);
+    }
+
+    private function getPostCacheForPostId($postId)
+    {
+        $postCache = $this->postCache->getCacheForPostId($postId);
+
+        if (! $postCache) {
+            return null;
+        }
+
+        return $postCache;
+    }
+
+    private function enableFlag($keyFormat, $postId, $value = true)
+    {
+        set_transient(
+            sprintf($keyFormat, $postId, $this->workflowId),
+            $value,
+            self::TRANSIENT_EXPIRATION
+        );
+    }
+
+    private function hasFlag($keyFormat, $postId)
+    {
+        return get_transient(
+            sprintf($keyFormat, $postId, $this->workflowId)
+        );
+    }
+
+    private function disableFlag($keyFormat, $postId)
+    {
+        delete_transient(
+            sprintf($keyFormat, $postId, $this->workflowId)
+        );
     }
 }
